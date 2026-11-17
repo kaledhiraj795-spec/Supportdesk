@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  customer
+  agent
+  admin
+}
+
+enum TicketStatus {
+  open
+  in_progress
+  waiting_on_customer
+  resolved
+  closed
+}
+
+enum TicketPriority {
+  P1
+  P2
+  P3
+  P4
+}
+
+model User {
+  id              String     @id @default(uuid()) @db.Uuid
+  name            String
+  email           String     @unique
+  passwordHash    String
+  role            UserRole
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  createdTickets  Ticket[]   @relation("TicketCreator")
+  assignedTickets Ticket[]   @relation("TicketAssignee")
+  comments        Comment[]
+  auditLogs       AuditLog[]
+}
+
+model Ticket {
+  id          String         @id @default(uuid()) @db.Uuid
+  title       String
+  description String
+  status      TicketStatus   @default(open)
+  priority    TicketPriority
+  category    String
+  creatorId   String         @db.Uuid
+  assigneeId  String?        @db.Uuid
+  slaDueAt    DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  creator     User           @relation("TicketCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+  assignee    User?          @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  comments    Comment[]
+  attachments Attachment[]
+  ticketTags  TicketTag[]
+
+  @@index([creatorId])
+  @@index([assigneeId])
+  @@index([status, priority])
+  @@index([slaDueAt])
+}
+
+model Comment {
+  id         String   @id @default(uuid()) @db.Uuid
+  ticketId   String   @db.Uuid
+  authorId   String   @db.Uuid
+  body       String
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId])
+}
+
+model Tag {
+  id         String      @id @default(uuid()) @db.Uuid
+  name       String      @unique
+  ticketTags TicketTag[]
+}
+
+model TicketTag {
+  ticketId String @db.Uuid
+  tagId    String @db.Uuid
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([ticketId, tagId])
+  @@index([tagId, ticketId])
+}
+
+model Attachment {
+  id        String   @id @default(uuid()) @db.Uuid
+  ticketId  String   @db.Uuid
+  fileName  String
+  createdAt DateTime @default(now())
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String   @db.Uuid
+  action     String
+  targetType String
+  targetId   String   @db.Uuid
+  timestamp  DateTime @default(now())
+  actor      User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+}

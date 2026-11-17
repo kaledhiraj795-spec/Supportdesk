@@ -27,3 +27,75 @@ Application features have not been implemented yet.
 
 ## Security
 Never commit passwords, API keys, access tokens, or real credentials.
+## TypeScript Ticket CLI
+
+The Ticket CLI generates ticket IDs and converts CSV ticket records into JSON.
+
+### Requirements
+- Node.js
+- npm
+
+### Setup
+
+From the SupportDesk repository root, run:
+
+```bash
+cd tools/ticket-cli
+npm install
+```
+
+### Run the CLI
+
+From the `tools/ticket-cli` directory, run:
+
+```bash
+npm start -- data/sample-tickets.csv
+```
+
+The output is saved to `data/tickets.json`.
+
+To choose a different output file:
+
+```bash
+npm start -- data/sample-tickets.csv data/custom-output.json
+```
+
+### CSV Input Format
+
+The CSV file must contain these columns:
+
+- `title`
+- `description`
+- `priority`
+
+Allowed priority values are `low`, `medium`, and `high`.
+
+Example:
+
+```csv
+title,description,priority
+Login issue,Unable to log in,high
+Payment issue,Payment not updated,medium
+```
+
+### Ticket ID Format
+
+`SD-YYYYMMDD-XXXXXXXX`
+
+- `SD` identifies SupportDesk.
+- `YYYYMMDD` represents the date.
+- `XXXXXXXX` is an eight-character uppercase hexadecimal random suffix.
+
+The random suffix does not guarantee global uniqueness.
+
+### Run Tests
+
+From the `tools/ticket-cli` directory, run:
+
+```bash
+npm test
+npm run typecheck
+npm run build
+```
+
+The CLI reports errors for missing required columns and malformed CSV input.

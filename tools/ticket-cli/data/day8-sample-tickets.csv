@@ -1,0 +1,51 @@
+title,description,priority
+Login page not loading,Customer sees a blank login page,high
+Password reset email missing,Password reset email is not arriving,medium
+Profile photo upload failed,Profile photo upload shows an error,low
+Payment status pending,Completed payment still shows pending,high
+Dashboard loading slowly,Dashboard takes too long to load,medium
+Cannot update email,Email update form does not save changes,medium
+Two factor code rejected,Valid verification code is rejected,high
+Notification settings not saved,Notification preferences revert after saving,low
+Ticket attachment failed,PDF attachment upload fails,medium
+Search returns no results,Existing tickets are missing from search,medium
+Account locked unexpectedly,Customer account became locked after one attempt,high
+Invoice download unavailable,Invoice download link returns an error,medium
+Mobile menu not opening,Navigation menu does not open on mobile,low
+Duplicate email notification,Customer receives the same email twice,low
+Checkout page error,Checkout page displays an unexpected error,high
+Order confirmation delayed,Confirmation message arrives very late,medium
+Cannot change phone number,Phone number update is not saved,low
+Support chat disconnected,Chat session disconnects repeatedly,medium
+Incorrect dashboard count,Dashboard ticket count appears incorrect,low
+Export file empty,CSV export downloads without records,medium
+Session expires quickly,User is logged out too soon,medium
+Password change rejected,New password is rejected despite valid rules,high
+Comment not appearing,Submitted ticket comment is not visible,medium
+Dark mode preference resets,Dark mode setting does not persist,low
+Browser notification missing,New ticket browser notification is not shown,low
+Payment receipt missing,Successful payment has no downloadable receipt,high
+User invitation failed,Invited teammate does not receive invitation,medium
+Ticket assignment unavailable,Agent cannot assign a ticket,high
+Attachment preview broken,Image attachment preview does not load,low
+Incorrect ticket priority,Ticket priority changes unexpectedly,medium
+Registration form error,Registration form rejects valid information,high
+Profile name not updating,Updated profile name is not displayed,low
+API response delayed,Ticket list API responds very slowly,medium
+Logout button unresponsive,Logout button does not end the session,medium
+Knowledge base link broken,Help article link opens a missing page,low
+Ticket filter not working,Status filter does not filter tickets,medium
+Admin report unavailable,Admin report page displays an error,high
+Comment formatting issue,Comment text loses line breaks,low
+Email address validation issue,Valid email address is rejected,medium
+File size warning incorrect,Small attachment is marked too large,low
+Billing page inaccessible,Billing page returns access denied,high
+Ticket history incomplete,Previous ticket updates are missing,medium
+Agent availability incorrect,Unavailable agent appears online,low
+Search suggestions missing,Search suggestions do not appear,low
+Repeated login redirect,Login redirects repeatedly to the same page,high
+Account settings page error,Account settings page fails to open,medium
+Ticket creation failed,New ticket submission returns an error,high
+Notification badge incorrect,Unread notification count is incorrect,low
+Payment refund status delayed,Refund status has not updated,medium
+User role display incorrect,Agent role is displayed incorrectly,low
