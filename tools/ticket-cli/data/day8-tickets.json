@@ -1,0 +1,302 @@
+[
+  {
+    "ticketId": "SD-20261117-28FFE63C",
+    "title": "Login page not loading",
+    "description": "Customer sees a blank login page",
+    "priority": "high"
+  },
+  {
+    "ticketId": "SD-20261117-A0D08FE1",
+    "title": "Password reset email missing",
+    "description": "Password reset email is not arriving",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-546DCA30",
+    "title": "Profile photo upload failed",
+    "description": "Profile photo upload shows an error",
+    "priority": "low"
+  },
+  {
+    "ticketId": "SD-20261117-13F07C9A",
+    "title": "Payment status pending",
+    "description": "Completed payment still shows pending",
+    "priority": "high"
+  },
+  {
+    "ticketId": "SD-20261117-AB1B5D0A",
+    "title": "Dashboard loading slowly",
+    "description": "Dashboard takes too long to load",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-C3425F38",
+    "title": "Cannot update email",
+    "description": "Email update form does not save changes",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-FB3E0783",
+    "title": "Two factor code rejected",
+    "description": "Valid verification code is rejected",
+    "priority": "high"
+  },
+  {
+    "ticketId": "SD-20261117-5C70B4E8",
+    "title": "Notification settings not saved",
+    "description": "Notification preferences revert after saving",
+    "priority": "low"
+  },
+  {
+    "ticketId": "SD-20261117-E1A5E90C",
+    "title": "Ticket attachment failed",
+    "description": "PDF attachment upload fails",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-354A5A1E",
+    "title": "Search returns no results",
+    "description": "Existing tickets are missing from search",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-D96E1BE1",
+    "title": "Account locked unexpectedly",
+    "description": "Customer account became locked after one attempt",
+    "priority": "high"
+  },
+  {
+    "ticketId": "SD-20261117-B7DB41A8",
+    "title": "Invoice download unavailable",
+    "description": "Invoice download link returns an error",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-D70B4922",
+    "title": "Mobile menu not opening",
+    "description": "Navigation menu does not open on mobile",
+    "priority": "low"
+  },
+  {
+    "ticketId": "SD-20261117-1EAEFD95",
+    "title": "Duplicate email notification",
+    "description": "Customer receives the same email twice",
+    "priority": "low"
+  },
+  {
+    "ticketId": "SD-20261117-A2338014",
+    "title": "Checkout page error",
+    "description": "Checkout page displays an unexpected error",
+    "priority": "high"
+  },
+  {
+    "ticketId": "SD-20261117-1B67F99A",
+    "title": "Order confirmation delayed",
+    "description": "Confirmation message arrives very late",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-7197452E",
+    "title": "Cannot change phone number",
+    "description": "Phone number update is not saved",
+    "priority": "low"
+  },
+  {
+    "ticketId": "SD-20261117-BF47F409",
+    "title": "Support chat disconnected",
+    "description": "Chat session disconnects repeatedly",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-0802CFEC",
+    "title": "Incorrect dashboard count",
+    "description": "Dashboard ticket count appears incorrect",
+    "priority": "low"
+  },
+  {
+    "ticketId": "SD-20261117-D7697D0C",
+    "title": "Export file empty",
+    "description": "CSV export downloads without records",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-A6F1F786",
+    "title": "Session expires quickly",
+    "description": "User is logged out too soon",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-CE1E82B3",
+    "title": "Password change rejected",
+    "description": "New password is rejected despite valid rules",
+    "priority": "high"
+  },
+  {
+    "ticketId": "SD-20261117-99EFDD8B",
+    "title": "Comment not appearing",
+    "description": "Submitted ticket comment is not visible",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-63F6F0C8",
+    "title": "Dark mode preference resets",
+    "description": "Dark mode setting does not persist",
+    "priority": "low"
+  },
+  {
+    "ticketId": "SD-20261117-82A858C2",
+    "title": "Browser notification missing",
+    "description": "New ticket browser notification is not shown",
+    "priority": "low"
+  },
+  {
+    "ticketId": "SD-20261117-B1498B18",
+    "title": "Payment receipt missing",
+    "description": "Successful payment has no downloadable receipt",
+    "priority": "high"
+  },
+  {
+    "ticketId": "SD-20261117-8CCF7FE3",
+    "title": "User invitation failed",
+    "description": "Invited teammate does not receive invitation",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-B1A18E06",
+    "title": "Ticket assignment unavailable",
+    "description": "Agent cannot assign a ticket",
+    "priority": "high"
+  },
+  {
+    "ticketId": "SD-20261117-44131B77",
+    "title": "Attachment preview broken",
+    "description": "Image attachment preview does not load",
+    "priority": "low"
+  },
+  {
+    "ticketId": "SD-20261117-501EC972",
+    "title": "Incorrect ticket priority",
+    "description": "Ticket priority changes unexpectedly",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-73EEA72F",
+    "title": "Registration form error",
+    "description": "Registration form rejects valid information",
+    "priority": "high"
+  },
+  {
+    "ticketId": "SD-20261117-18251D58",
+    "title": "Profile name not updating",
+    "description": "Updated profile name is not displayed",
+    "priority": "low"
+  },
+  {
+    "ticketId": "SD-20261117-660C2D8E",
+    "title": "API response delayed",
+    "description": "Ticket list API responds very slowly",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-AA69498C",
+    "title": "Logout button unresponsive",
+    "description": "Logout button does not end the session",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-34DD6FFE",
+    "title": "Knowledge base link broken",
+    "description": "Help article link opens a missing page",
+    "priority": "low"
+  },
+  {
+    "ticketId": "SD-20261117-21D8403B",
+    "title": "Ticket filter not working",
+    "description": "Status filter does not filter tickets",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-0BBF1173",
+    "title": "Admin report unavailable",
+    "description": "Admin report page displays an error",
+    "priority": "high"
+  },
+  {
+    "ticketId": "SD-20261117-F1E2960F",
+    "title": "Comment formatting issue",
+    "description": "Comment text loses line breaks",
+    "priority": "low"
+  },
+  {
+    "ticketId": "SD-20261117-6238DE4A",
+    "title": "Email address validation issue",
+    "description": "Valid email address is rejected",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-02A1618A",
+    "title": "File size warning incorrect",
+    "description": "Small attachment is marked too large",
+    "priority": "low"
+  },
+  {
+    "ticketId": "SD-20261117-D55820C2",
+    "title": "Billing page inaccessible",
+    "description": "Billing page returns access denied",
+    "priority": "high"
+  },
+  {
+    "ticketId": "SD-20261117-AF2D4311",
+    "title": "Ticket history incomplete",
+    "description": "Previous ticket updates are missing",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-1C46F678",
+    "title": "Agent availability incorrect",
+    "description": "Unavailable agent appears online",
+    "priority": "low"
+  },
+  {
+    "ticketId": "SD-20261117-D4D50917",
+    "title": "Search suggestions missing",
+    "description": "Search suggestions do not appear",
+    "priority": "low"
+  },
+  {
+    "ticketId": "SD-20261117-5F693C0D",
+    "title": "Repeated login redirect",
+    "description": "Login redirects repeatedly to the same page",
+    "priority": "high"
+  },
+  {
+    "ticketId": "SD-20261117-02C44A9C",
+    "title": "Account settings page error",
+    "description": "Account settings page fails to open",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-7B60C09F",
+    "title": "Ticket creation failed",
+    "description": "New ticket submission returns an error",
+    "priority": "high"
+  },
+  {
+    "ticketId": "SD-20261117-2B50C9E9",
+    "title": "Notification badge incorrect",
+    "description": "Unread notification count is incorrect",
+    "priority": "low"
+  },
+  {
+    "ticketId": "SD-20261117-3A4D7A1E",
+    "title": "Payment refund status delayed",
+    "description": "Refund status has not updated",
+    "priority": "medium"
+  },
+  {
+    "ticketId": "SD-20261117-C8D5827B",
+    "title": "User role display incorrect",
+    "description": "Agent role is displayed incorrectly",
+    "priority": "low"
+  }
+]
