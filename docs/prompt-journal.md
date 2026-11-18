@@ -68,3 +68,13 @@
 - What I Changed: I restored high to the allowed priorities: low, medium, and high.
 - Verification: The injected bug caused one test to fail. The final test summary after the fix should be recorded from the actual terminal output.
 - Outcome: I learned that a failing test can help identify the cause of a bug. Next time, I should provide the expected behaviour, actual behaviour, error output, relevant code, and steps already tried.
+
+## Entry 8: API Skeleton and MVC in Practice
+
+- Date: 2026-11-18
+- Goal/Context: Build a REST API using Express, TypeScript, Zod, and Prisma with a clean MVC architecture.
+- Prompt Used: I asked AI to guide me step by step to implement the API skeleton, ticket CRUD endpoints, environment validation, request logging, and centralized error handling.
+- AI Response Summary: AI helped implement routes, controllers, services, repositories, validators, middleware, and database integration.
+- What I Changed: I created the API structure and implemented GET, POST, and PATCH ticket endpoints. I also added Zod validation, a request logger, and a central error handler.
+- Verification: TypeScript build passed. Health endpoint returned 200 OK. Ticket GET returned 200 OK, valid POST returned 201 Created, valid PATCH returned 200 OK, invalid POST/PATCH returned 400 Bad Request, and a nonexistent ticket returned 404 Not Found. Architecture audit confirmed that Prisma is used only in the repository layer.
+- Outcome: I learned how requests move through routes, controllers, services, and repositories. I also understood request validation and centralized error handling. Next time, I should plan and verify each architecture layer before implementation.
