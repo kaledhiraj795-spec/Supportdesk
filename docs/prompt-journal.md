@@ -198,3 +198,17 @@
   - Requester-reported live workflow: database-backed login for `mynewemail@gmail.com` succeeded; invalid credentials returned an authentication error; `/tickets` rendered live ticket data. These account-specific results were not independently repeated in this session because no password was provided.
   - `apps/web/.env` is ignored by the repository `.gitignore`; `.env.example` contains only the local API base URL.
 - Limitations: Requester-reported login and live ticket outcomes are recorded as such; they were not independently reproduced. UI authentication behavior was exercised with controlled API responses in component tests. No password or token was recorded.
+
+## Entry 15: Day 14 Role-Aware Dashboards
+
+- Date: 2026-11-22
+- Prompt: “Implement the approved role-aware dashboards UI: shared loading/empty/error components, split-screen login with password visibility, role-aware app layout, dashboard analytics from all paginated `/tickets` responses, recent tickets, focused tests, and verification.”
+- Implementation: Added reusable loading, empty, and retryable error states; updated login to a responsive split-screen design with accessible password visibility while preserving validation and real API errors; added role-aware navigation/profile/breadcrumb header; mounted a role-tailored dashboard at `/` while retaining `/tickets`.
+- Dashboard data: The tickets API uses the existing authenticated `GET /tickets` endpoint with `limit=100`, reads `meta.totalPages`, and fetches each remaining page in batches. Counts, status/priority distributions, and recent tickets are derived only from the fetched ticket data. Customer role values remain lowercase in code and are presented as readable labels.
+- Tests: Added focused AppLayout and Dashboard component tests plus a ticket pagination test; extended LoginPage tests for password visibility. No `fetch` or `apiRequest` calls exist in UI pages/components.
+- Verification:
+  - `npm test --prefix apps/web` — PASS, 16 tests across 6 files.
+  - `npm run typecheck --prefix apps/web` — PASS.
+  - `npm run build --prefix apps/web` — PASS; Vite 8.3.8 transformed 83 modules.
+  - UI component search for direct `fetch`/`apiRequest` calls — PASS, no matches.
+- No backend API or environment files were changed.

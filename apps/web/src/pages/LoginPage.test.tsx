@@ -116,4 +116,17 @@ describe("LoginPage", () => {
     resolveResponse(jsonResponse({ data: session, error: null, meta: null }));
     expect(await screen.findByText("Tickets workspace")).toBeInTheDocument();
   });
+
+  it("toggles password visibility with an accessible control", async () => {
+    const user = userEvent.setup();
+    renderLogin();
+
+    const password = screen.getByLabelText("Password");
+    expect(password).toHaveAttribute("type", "password");
+    await user.click(screen.getByRole("button", { name: "Show password" }));
+    expect(password).toHaveAttribute("type", "text");
+    expect(screen.getByRole("button", { name: "Hide password" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "Hide password" }));
+    expect(password).toHaveAttribute("type", "password");
+  });
 });
