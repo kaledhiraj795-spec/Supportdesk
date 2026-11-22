@@ -1,0 +1,14 @@
+$kind: http-request
+url: "{{baseUrl}}/tickets/{{customerTicketId}}"
+method: GET
+headers:
+  Authorization: Bearer {{customerToken}}
+auth:
+  type: bearer
+  credentials:
+    token: "{{customerToken}}"
+scripts:
+  - type: afterResponse
+    code: pm.test('customer can read own ticket', () => pm.response.to.have.status(200));
+    language: text/javascript
+order: 11000

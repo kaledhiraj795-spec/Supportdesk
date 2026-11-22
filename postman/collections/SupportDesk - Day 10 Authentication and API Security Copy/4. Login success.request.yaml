@@ -1,0 +1,25 @@
+$kind: http-request
+url: "{{baseUrl}}/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "{{customerEmail}}",
+      "password": "{{customerPassword}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('login succeeds', () => pm.response.to.have.status(200));
+      const result = pm.response.json().data;
+      pm.environment.set('customerToken', result.token);
+      pm.environment.set('customerId', result.user.id);
+      pm.test('login response excludes password hash', () => {
+        pm.expect(pm.response.text()).not.to.include('passwordHash');
+        pm.expect(result.user).not.to.have.property('password');
+      });
+    language: text/javascript
+order: 4000

@@ -1,0 +1,24 @@
+$kind: http-request
+url: "{{baseUrl}}/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "{{otherCustomerEmail}}",
+      "password": "{{customerPassword}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('second customer login succeeds', () => pm.response.to.have.status(200));
+      if (pm.response.code === 200) {
+        const result = pm.response.json().data;
+        pm.environment.set('otherCustomerToken', result.token);
+        pm.environment.set('otherCustomerId', result.user.id);
+        pm.test('second login has customer role', () => pm.expect(result.user.role).to.eql('customer'));
+      }
+    language: text/javascript
+order: 6000

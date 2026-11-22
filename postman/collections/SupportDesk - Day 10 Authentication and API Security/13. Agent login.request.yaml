@@ -1,0 +1,23 @@
+$kind: http-request
+url: "{{baseUrl}}/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "{{agentEmail}}",
+      "password": "{{agentPassword}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('agent login succeeds', () => pm.response.to.have.status(200));
+      if (pm.response.code === 200) {
+        const result = pm.response.json().data;
+        pm.environment.set('agentToken', result.token);
+        pm.test('sample account has agent role', () => pm.expect(result.user.role).to.eql('agent'));
+      }
+    language: text/javascript
+order: 13000

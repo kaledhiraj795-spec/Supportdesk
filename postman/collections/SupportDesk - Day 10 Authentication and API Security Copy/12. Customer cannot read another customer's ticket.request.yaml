@@ -1,0 +1,71 @@
+$kind: http-request
+url: "{{baseUrl}}/tickets/{{otherTicketId}}"
+method: GET
+headers:
+  Authorization: Bearer {{customerToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const decodePayload = (token) => {
+        try {
+          const payload = token.split('.')[1]
+            .replace(/-/g, '+')
+            .replace(/_/g, '/');
+          return JSON.parse(atob(payload + '='.repeat((4 - payload.length % 4) % 4)));
+        } catch (_) {
+          return null;
+        }
+      };
+
+      const token = pm.environment.get('customerToken');
+      const customerId = pm.environment.get('customerId');
+      const payload = typeof token === 'string' ? decodePayload(token) : null;
+      const tokenIsValidCustomer = payload &&
+        payload.role === 'customer' &&
+        typeof payload.userId === 'string' &&
+        (!customerId || payload.userId === customerId);
+
+      if (!tokenIsValidCustomer) {
+        pm.environment.set('customerToken', '');
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get('customerEmail'),
+              password: pm.environment.get('customerPassword')
+            })
+          }
+        }, (error, response) => {
+          if (error || response.code !== 200) {
+            throw new Error('Test 12 requires a valid customer login token');
+          }
+          const result = response.json().data;
+          if (!result.token || result.user.role !== 'customer') {
+            throw new Error('Test 12 received an invalid customer login response');
+          }
+          pm.environment.set('customerToken', result.token);
+          pm.environment.set('customerId', result.user.id);
+        });
+      }
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('customer token is non-empty and is a customer token', () => {
+        const token = pm.environment.get('customerToken');
+        pm.expect(token).to.be.a('string').and.not.empty;
+        const payloadPart = token.split('.')[1]
+          .replace(/-/g, '+')
+          .replace(/_/g, '/');
+        const payload = JSON.parse(atob(payloadPart + '='.repeat((4 - payloadPart.length % 4) % 4)));
+        pm.expect(payload.role).to.eql('customer');
+      });
+      pm.test('ownership check uses the generated second-customer ticket ID', () => {
+        pm.expect(pm.environment.get('otherTicketId')).to.be.a('string').and.not.empty;
+        pm.expect(pm.environment.get('otherTicketId')).not.to.eql(pm.environment.get('customerTicketId'));
+      });
+      pm.test('another customer ticket is hidden', () => pm.response.to.have.status(404));
+    language: text/javascript
+order: 15000

@@ -1,0 +1,14 @@
+$kind: http-request
+url: "{{baseUrl}}/tickets"
+method: GET
+headers:
+  Authorization: Bearer {{wrongRoleToken}}
+auth:
+  type: bearer
+  credentials:
+    token: "{{agentToken}}"
+scripts:
+  - type: afterResponse
+    code: pm.test('valid token with unauthorized role returns 401', () => pm.response.to.have.status(401));
+    language: text/javascript
+order: 12000

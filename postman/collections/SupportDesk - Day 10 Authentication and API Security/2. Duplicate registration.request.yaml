@@ -1,0 +1,18 @@
+$kind: http-request
+url: "{{baseUrl}}/auth/register"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "name": "Day 10 Customer",
+      "email": "{{customerEmail}}",
+      "password": "{{customerPassword}}"
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test('duplicate email is rejected safely', () => pm.response.to.have.status(409));
+    language: text/javascript
+order: 2000

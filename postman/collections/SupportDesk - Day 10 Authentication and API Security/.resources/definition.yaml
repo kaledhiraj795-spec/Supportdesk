@@ -1,0 +1,6 @@
+$kind: collection
+description: Day 10 API verification. Use only a local or approved test database. Enter customerPassword and the configured sample-agent password in the local Postman environment. The collection registers and logs in a second customer, creates a ticket with that customer's token, stores its actual ID, and checks access using the first customer's token. Run the rate-limit request separately after its window is clear.
+variables:
+  - key: json_web_token_0gie
+    secret: true
+    disabled: false

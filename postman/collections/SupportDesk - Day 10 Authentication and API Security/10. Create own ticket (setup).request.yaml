@@ -1,0 +1,33 @@
+$kind: http-request
+url: "{{baseUrl}}/tickets"
+method: POST
+headers:
+  Authorization: Bearer {{customerToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "title": "Day 10 test ticket",
+      "description": "Created in an approved test environment",
+      "priority": "P2",
+      "category": "account"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{customerToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('ticket created for authenticated customer', () => pm.response.to.have.status(201));
+      if (pm.response.code === 201) {
+        const ticket = pm.response.json().data;
+        pm.environment.set('customerTicketId', ticket.id);
+        pm.test('request cannot choose ticket creator', () => {
+          pm.expect(ticket.creatorId).to.eql(pm.environment.get('customerId'));
+          pm.expect(ticket.creatorId).not.to.eql(pm.environment.get('otherCustomerId'));
+        });
+      }
+    language: text/javascript
+order: 10000

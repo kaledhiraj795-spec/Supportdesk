@@ -1,0 +1,32 @@
+$kind: http-request
+url: "{{baseUrl}}/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "day10-rate-limit-unknown@example.test",
+      "password": "incorrect-password"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const url = pm.variables.replaceIn('{{baseUrl}}/auth/login');
+      const rawBody = JSON.stringify({ email: 'day10-rate-limit-unknown@example.test', password: 'incorrect-password' });
+      const sendAttempt = (attempt) => {
+        if (attempt >= 5) return;
+        pm.sendRequest({
+          url,
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: { mode: 'raw', raw: rawBody }
+        }, () => sendAttempt(attempt + 1));
+      };
+      sendAttempt(0);
+    language: text/javascript
+  - type: afterResponse
+    code: pm.test('excessive login attempts are rate limited', () => pm.response.to.have.status(429));
+    language: text/javascript
+order: 19000
