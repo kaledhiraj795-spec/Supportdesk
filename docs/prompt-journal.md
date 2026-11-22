@@ -78,3 +78,21 @@
 - What I Changed: I created the API structure and implemented GET, POST, and PATCH ticket endpoints. I also added Zod validation, a request logger, and a central error handler.
 - Verification: TypeScript build passed. Health endpoint returned 200 OK. Ticket GET returned 200 OK, valid POST returned 201 Created, valid PATCH returned 200 OK, invalid POST/PATCH returned 400 Bad Request, and a nonexistent ticket returned 404 Not Found. Architecture audit confirmed that Prisma is used only in the repository layer.
 - Outcome: I learned how requests move through routes, controllers, services, and repositories. I also understood request validation and centralized error handling. Next time, I should plan and verify each architecture layer before implementation.
+
+## Entry 14: Day 13 Frontend Foundations
+
+- Date: 2026-11-22
+- Task: Scaffold the SupportDesk web app, implement login/session handling, protected routes, shared API access and the minimal ticket-list foundation.
+- Backend Contract: `POST /auth/login` accepts `{ email, password }` and returns the standard envelope containing `{ token, user }`; protected API requests use bearer JWTs. No server logout or refresh endpoint exists.
+- Implementation: Added the React/Vite/TypeScript/Tailwind app, React Router and TanStack Query foundation, typed API client, session-storage auth helpers, React Hook Form login, protected routes, client-side sign-out and ticket query/list states. Added focused API-client, login and route tests.
+- Dependencies: React 19.3.1, Vite 8.3.8, TypeScript 7.0.2, Tailwind CSS 4.3.5, React Router 7.18.6, TanStack Query 5.108.2, React Hook Form 7.92.0, Vitest 5.1.1 and Testing Library.
+- CORS: Existing API allowlist already included `http://localhost:5173`; no backend security changes were needed. A live preflight returned HTTP 204 with `Access-Control-Allow-Origin: http://localhost:5173`. An unlisted origin received no allow-origin header.
+- Verification:
+  - `npm run typecheck --prefix apps/web` — PASS.
+  - `npm run build --prefix apps/web` — PASS; Vite built 79 modules.
+  - `npm test --prefix apps/web` — PASS; 8 tests across 3 files.
+  - `npm audit --prefix apps/web` — PASS; 0 vulnerabilities.
+  - Vite dev server — PASS; page and transformed entry returned HTTP 200. Browser smoke test redirected `/` to `/login` and displayed required-field validation.
+  - Requester-reported live workflow: database-backed login for `mynewemail@gmail.com` succeeded; invalid credentials returned an authentication error; `/tickets` rendered live ticket data. These account-specific results were not independently repeated in this session because no password was provided.
+  - `apps/web/.env` is ignored by the repository `.gitignore`; `.env.example` contains only the local API base URL.
+- Limitations: Requester-reported login and live ticket outcomes are recorded as such; they were not independently reproduced. UI authentication behavior was exercised with controlled API responses in component tests. No password or token was recorded.
