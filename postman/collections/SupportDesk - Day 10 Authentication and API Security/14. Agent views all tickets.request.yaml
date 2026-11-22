@@ -1,0 +1,10 @@
+$kind: http-request
+url: "{{baseUrl}}/tickets"
+method: GET
+headers:
+  Authorization: Bearer {{agentToken}}
+scripts:
+  - type: afterResponse
+    code: pm.test('agent can list all tickets', () => pm.response.to.have.status(200));
+    language: text/javascript
+order: 14000

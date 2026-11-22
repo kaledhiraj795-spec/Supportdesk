@@ -1,0 +1,30 @@
+$kind: http-request
+url: "{{baseUrl}}/auth/register"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "name": "Day 10 Other Customer",
+      "email": "{{otherCustomerEmail}}",
+      "password": "{{customerPassword}}"
+    }
+scripts:
+  - type: beforeRequest
+    code: pm.environment.set('otherCustomerEmail', 'day10.other-customer+' + Date.now() + '@example.test');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('second customer registered', () => pm.response.to.have.status(201));
+      if (pm.response.code === 201) {
+        const user = pm.response.json().data;
+        pm.environment.set('otherCustomerId', user.id);
+        pm.test('second account is a customer and contains no hash', () => {
+          pm.expect(user.role).to.eql('customer');
+          pm.expect(pm.response.text()).not.to.include('passwordHash');
+        });
+      }
+    language: text/javascript
+order: 4100

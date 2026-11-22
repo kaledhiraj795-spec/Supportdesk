@@ -1,0 +1,2 @@
+$kind: collection
+description: Day 10 API verification. Use only a local or approved test database. Set customerPassword and agentPassword in the local environment. The collection creates a second customer and ticket from live API responses before checking ownership. The rate-limit request should be run separately after its rate-limit window is clear.

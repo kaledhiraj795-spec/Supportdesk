@@ -1,0 +1,557 @@
+{
+  "info": {
+    "name": "SupportDesk - Day 10 Authentication and API Security",
+    "description": "Day 10 API verification. Use only a local or approved test database. Set customerPassword and agentPassword in the local environment. The collection creates a second customer and ticket from live API responses before checking ownership. The rate-limit request should be run separately after its rate-limit window is clear.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Register customer",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Day 10 Customer\",\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/register"
+      },
+      "event": [{
+        "listen": "prerequest",
+        "script": {
+          "type": "text/javascript",
+          "exec": ["pm.environment.set('customerEmail', 'day10.customer+' + Date.now() + '@example.test');"]
+        }
+      }, {
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('customer registered', () => pm.response.to.have.status(201));",
+            "pm.test('credentials are excluded', () => {",
+            "  const text = pm.response.text();",
+            "  pm.expect(text).not.to.include('passwordHash');",
+            "  pm.expect(text).not.to.include(pm.environment.get('customerPassword'));",
+            "  pm.expect(pm.response.json().data.role).to.eql('customer');",
+            "});"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "2. Duplicate registration",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Day 10 Customer\",\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/register"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": ["pm.test('duplicate email is rejected safely', () => pm.response.to.have.status(409));"]
+        }
+      }]
+    },
+    {
+      "name": "3. Invalid registration",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"\",\n  \"email\": \"not-an-email\",\n  \"password\": \"short\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/register"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": ["pm.test('invalid registration is rejected', () => pm.response.to.have.status(400));"]
+        }
+      }]
+    },
+    {
+      "name": "4. Login success",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('login succeeds', () => pm.response.to.have.status(200));",
+            "const result = pm.response.json().data;",
+            "pm.environment.set('customerToken', result.token);",
+            "pm.environment.set('customerId', result.user.id);",
+            "pm.test('login response excludes password hash', () => {",
+            "  pm.expect(pm.response.text()).not.to.include('passwordHash');",
+            "  pm.expect(result.user).not.to.have.property('password');",
+            "});"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "4a. Register second customer",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Day 10 Other Customer\",\n  \"email\": \"{{otherCustomerEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/register"
+      },
+      "event": [{
+        "listen": "prerequest",
+        "script": {
+          "type": "text/javascript",
+          "exec": ["pm.environment.set('otherCustomerEmail', 'day10.other-customer+' + Date.now() + '@example.test');"]
+        }
+      }, {
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('second customer registered', () => pm.response.to.have.status(201));",
+            "if (pm.response.code === 201) {",
+            "  const user = pm.response.json().data;",
+            "  pm.environment.set('otherCustomerId', user.id);",
+            "  pm.test('second account is a customer and contains no hash', () => {",
+            "    pm.expect(user.role).to.eql('customer');",
+            "    pm.expect(pm.response.text()).not.to.include('passwordHash');",
+            "  });",
+            "}"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "4b. Login second customer",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{otherCustomerEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('second customer login succeeds', () => pm.response.to.have.status(200));",
+            "if (pm.response.code === 200) {",
+            "  const result = pm.response.json().data;",
+            "  pm.environment.set('otherCustomerToken', result.token);",
+            "  pm.environment.set('otherCustomerId', result.user.id);",
+            "  pm.test('second login has customer role', () => pm.expect(result.user.role).to.eql('customer'));",
+            "}"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "4c. Create second customer's ticket",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{otherCustomerToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Other customer's ownership test\",\n  \"description\": \"Created by the second customer for an ownership check\",\n  \"priority\": \"P2\",\n  \"category\": \"account\",\n  \"creatorId\": \"{{customerId}}\"\n}"
+        },
+        "url": "{{baseUrl}}/tickets"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('second customer ticket is created', () => pm.response.to.have.status(201));",
+            "if (pm.response.code === 201) {",
+            "  const ticket = pm.response.json().data;",
+            "  pm.environment.set('otherTicketId', ticket.id);",
+            "  pm.test('ticket belongs to authenticated second customer, not supplied creatorId', () => {",
+            "    pm.expect(ticket.creatorId).to.eql(pm.environment.get('otherCustomerId'));",
+            "    pm.expect(ticket.creatorId).not.to.eql(pm.environment.get('customerId'));",
+            "  });",
+            "}"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "5. Login failure",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"incorrect-password\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": ["pm.test('wrong password is rejected', () => pm.response.to.have.status(401));"]
+        }
+      }]
+    },
+    {
+      "name": "6. Missing token",
+      "request": { "method": "GET", "url": "{{baseUrl}}/tickets" },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": ["pm.test('missing token returns 401', () => pm.response.to.have.status(401));"]
+        }
+      }]
+    },
+    {
+      "name": "7. Invalid token",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{invalidToken}}" }],
+        "url": "{{baseUrl}}/tickets"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": ["pm.test('invalid token returns 401', () => pm.response.to.have.status(401));"]
+        }
+      }]
+    },
+    {
+      "name": "8. Expired token",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{expiredToken}}" }],
+        "url": "{{baseUrl}}/tickets"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": ["pm.test('expired token returns 401', () => pm.response.to.have.status(401));"]
+        }
+      }]
+    },
+    {
+      "name": "9. Wrong role",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{wrongRoleToken}}" }],
+        "url": "{{baseUrl}}/tickets"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": ["pm.test('valid token with unauthorized role returns 403', () => pm.response.to.have.status(403));"]
+        }
+      }]
+    },
+    {
+      "name": "10. Create own ticket (setup)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Day 10 test ticket\",\n  \"description\": \"Created in an approved test environment\",\n  \"priority\": \"P2\",\n  \"category\": \"account\",\n  \"creatorId\": \"{{otherCustomerId}}\"\n}"
+        },
+        "url": "{{baseUrl}}/tickets"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('ticket created for authenticated customer', () => pm.response.to.have.status(201));",
+            "pm.environment.set('customerTicketId', pm.response.json().data.id);",
+            "pm.test('request cannot choose ticket creator', () => pm.expect(pm.response.json().data.creatorId).not.to.eql(pm.environment.get('otherCustomerId')));"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "11. Customer reads own ticket",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+        "url": "{{baseUrl}}/tickets/{{customerTicketId}}"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": ["pm.test('customer can read own ticket', () => pm.response.to.have.status(200));"]
+        }
+      }]
+    },
+    {
+      "name": "12. Customer cannot read another customer's ticket",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+        "url": "{{baseUrl}}/tickets/{{otherTicketId}}"
+      },
+      "event": [{
+        "listen": "prerequest",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "const decodePayload = (token) => {",
+            "  try {",
+            "    const payload = token.split('.')[1]",
+            "      .replace(/-/g, '+')",
+            "      .replace(/_/g, '/');",
+            "    return JSON.parse(atob(payload + '='.repeat((4 - payload.length % 4) % 4)));",
+            "  } catch (_) {",
+            "    return null;",
+            "  }",
+            "};",
+            "",
+            "const token = pm.environment.get('customerToken');",
+            "const customerId = pm.environment.get('customerId');",
+            "const payload = typeof token === 'string' ? decodePayload(token) : null;",
+            "const tokenIsValidCustomer = payload &&",
+            "  payload.role === 'customer' &&",
+            "  typeof payload.userId === 'string' &&",
+            "  (!customerId || payload.userId === customerId);",
+            "",
+            "if (!tokenIsValidCustomer) {",
+            "  pm.environment.set('customerToken', '');",
+            "  pm.sendRequest({",
+            "    url: pm.environment.get('baseUrl') + '/auth/login',",
+            "    method: 'POST',",
+            "    header: { 'Content-Type': 'application/json' },",
+            "    body: {",
+            "      mode: 'raw',",
+            "      raw: JSON.stringify({",
+            "        email: pm.environment.get('customerEmail'),",
+            "        password: pm.environment.get('customerPassword')",
+            "      })",
+            "    }",
+            "  }, (error, response) => {",
+            "    if (error || response.code !== 200) {",
+            "      throw new Error('Test 12 requires a valid customer login token');",
+            "    }",
+            "    const result = response.json().data;",
+            "    if (!result.token || result.user.role !== 'customer') {",
+            "      throw new Error('Test 12 received an invalid customer login response');",
+            "    }",
+            "    pm.environment.set('customerToken', result.token);",
+            "    pm.environment.set('customerId', result.user.id);",
+            "  });",
+            "}"
+          ]
+        }
+      }, {
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('customer token is non-empty and is a customer token', () => {",
+            "  const token = pm.environment.get('customerToken');",
+            "  pm.expect(token).to.be.a('string').and.not.empty;",
+            "  const payloadPart = token.split('.')[1]",
+            "    .replace(/-/g, '+')",
+            "    .replace(/_/g, '/');",
+            "  const payload = JSON.parse(atob(payloadPart + '='.repeat((4 - payloadPart.length % 4) % 4)));",
+            "  pm.expect(payload.role).to.eql('customer');",
+            "});",
+            "pm.test('ownership check uses the generated second-customer ticket ID', () => {",
+            "  pm.expect(pm.environment.get('otherTicketId')).to.be.a('string').and.not.empty;",
+            "  pm.expect(pm.environment.get('otherTicketId')).not.to.eql(pm.environment.get('customerTicketId'));",
+            "});",
+            "pm.test('another customer ticket is hidden', () => pm.response.to.have.status(404));"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "13. Agent login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{agentEmail}}\",\n  \"password\": \"{{agentPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('agent login succeeds', () => pm.response.to.have.status(200));",
+            "if (pm.response.code === 200) {",
+            "  const result = pm.response.json().data;",
+            "  pm.environment.set('agentToken', result.token);",
+            "  pm.test('authenticated sample account has agent role', () => pm.expect(result.user.role).to.eql('agent'));",
+            "}"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "14. Agent views all tickets",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{agentToken}}" }],
+        "url": "{{baseUrl}}/tickets"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": ["pm.test('agent can list all tickets', () => pm.response.to.have.status(200));"]
+        }
+      }]
+    },
+    {
+      "name": "15. Password hash exclusion",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Password response check\",\n  \"email\": \"{{passwordCheckEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/register"
+      },
+      "event": [{
+        "listen": "prerequest",
+        "script": {
+          "type": "text/javascript",
+          "exec": ["pm.environment.set('passwordCheckEmail', 'day10.password-check+' + Date.now() + '@example.test');"]
+        }
+      }, {
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('registration succeeds', () => pm.response.to.have.status(201));",
+            "pm.test('response never contains credentials', () => {",
+            "  pm.expect(pm.response.text()).not.to.include('passwordHash');",
+            "  pm.expect(pm.response.text()).not.to.include(pm.environment.get('customerPassword'));",
+            "});"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "16. CORS allowlist - allowed origin",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Origin", "value": "{{allowedOrigin}}" }],
+        "url": "{{baseUrl}}/health"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": ["pm.test('allowlisted CORS origin is returned', () => pm.expect(pm.response.headers.get('Access-Control-Allow-Origin')).to.eql(pm.environment.get('allowedOrigin')));"]
+        }
+      }]
+    },
+    {
+      "name": "17. CORS allowlist - denied origin",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Origin", "value": "{{blockedOrigin}}" }],
+        "url": "{{baseUrl}}/health"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": ["pm.test('unlisted origin receives no CORS allow header', () => pm.expect(pm.response.headers.get('Access-Control-Allow-Origin')).to.be.undefined);"]
+        }
+      }]
+    },
+    {
+      "name": "18. Helmet security headers",
+      "request": { "method": "GET", "url": "{{baseUrl}}/health" },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('health stays available', () => pm.response.to.have.status(200));",
+            "pm.test('Helmet headers are present', () => {",
+            "  pm.expect(pm.response.headers.get('X-Content-Type-Options')).to.eql('nosniff');",
+            "  pm.expect(pm.response.headers.get('Content-Security-Policy')).to.be.a('string');",
+            "});"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "19. Login rate limit (sixth attempt)",
+      "description": "The pre-request script sends five failed login requests to the local API. The request itself is the sixth attempt and should return 429. Do not run against production.",
+      "event": [{
+        "listen": "prerequest",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "const url = pm.variables.replaceIn('{{baseUrl}}/auth/login');",
+            "const rawBody = JSON.stringify({ email: 'day10-rate-limit-unknown@example.test', password: 'incorrect-password' });",
+            "const sendAttempt = (attempt) => {",
+            "  if (attempt >= 5) return;",
+            "  pm.sendRequest({",
+            "    url,",
+            "    method: 'POST',",
+            "    header: { 'Content-Type': 'application/json' },",
+            "    body: { mode: 'raw', raw: rawBody }",
+            "  }, () => sendAttempt(attempt + 1));",
+            "};",
+            "sendAttempt(0);"
+          ]
+        }
+      }, {
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": ["pm.test('excessive login attempts are rate limited', () => pm.response.to.have.status(429));"]
+        }
+      }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"day10-rate-limit-unknown@example.test\",\n  \"password\": \"incorrect-password\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    }
+  ]
+}

@@ -15,8 +15,8 @@ SupportDesk is a project for support-related application development.
 - .github/workflows: Future CI/CD workflows
 
 ## Current Status
-Week 1, Day 4: Initial repository structure and Git setup.
-Application features have not been implemented yet.
+The API includes authenticated ticket endpoints, customer registration and login,
+and security middleware. Local API startup requires the environment setup below.
 
 ## Development Workflow
 1. Create a feature branch.
@@ -27,6 +27,57 @@ Application features have not been implemented yet.
 
 ## Security
 Never commit passwords, API keys, access tokens, or real credentials.
+
+## API Local Development
+
+The API reads its environment from `apps/api/.env` when run with
+`npm run dev --prefix apps/api`. The repository-root `.env` is used by the
+local infrastructure setup and is not merged into the API environment.
+
+- If `apps/api/.env` does not exist, copy `apps/api/.env.example` to that path,
+  then set `DATABASE_URL` to the local development database.
+- If `apps/api/.env` already exists, do not overwrite it. Preserve its database
+  configuration and add only any missing API settings.
+- Set `JWT_SECRET` to a cryptographically random value of at least 32
+  characters. The `.env.example` value is only a placeholder and is rejected
+  by environment validation.
+- Set `CORS_ORIGINS` to a comma-separated list of exact local HTTP/HTTPS
+  origins, for example `http://localhost:5173`. Wildcards and URL paths are
+  rejected.
+
+Keep both `.env` files local and uncommitted. Start the API from the repository
+root with `npm run dev --prefix apps/api`.
+
+The optional Day 8 sample-data seed is run with
+`npm run db:seed --prefix apps/api`. Configure distinct
+`SUPPORTDESK_SEED_CUSTOMER_PASSWORD` and `SUPPORTDESK_SEED_AGENT_PASSWORD`
+values in `apps/api/.env` first. The seed stores bcrypt hashes and leaves
+existing user and ticket records unchanged. Existing sample users created by an
+older seed with placeholder password hashes are not repaired by reseeding.
+
+To configure only the sample agent without running the broad Day 8 seed, set
+`SUPPORTDESK_SEED_AGENT_PASSWORD` in the ignored `apps/api/.env` and run
+`npm run db:setup-sample-agent --prefix apps/api`. This command is restricted
+to loopback PostgreSQL URLs. It creates the sample agent if absent, is a no-op
+when the existing bcrypt password matches, and refuses to replace a different
+existing password. No password reset option is provided; an existing mismatch
+requires an explicitly approved separate password-management action. The
+command writes one user only when that sample agent is absent. It was not run
+while implementing this flow.
+
+For the Day 10 Postman collection, set `customerPassword` in the local
+environment to a test password that meets registration validation. Set
+`agentPassword` as a secret to the same value configured in
+`SUPPORTDESK_SEED_AGENT_PASSWORD`; `agentEmail` is already set to
+`day8.agent@supportdesk.test`. Do not put real passwords or tokens into
+collection files or commit the local environment.
+
+Run the collection from the beginning against an approved local test database.
+It registers/logs in a second customer, creates that customer's ticket, and
+saves the returned ticket ID to `otherTicketId` before the first customer
+attempts access. The expected ownership response is 404. Run the login-rate
+limit request separately after its limit window is clear.
+
 ## TypeScript Ticket CLI
 
 The Ticket CLI generates ticket IDs and converts CSV ticket records into JSON.

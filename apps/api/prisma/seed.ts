@@ -1,4 +1,5 @@
 import "dotenv/config";
+import bcrypt from "bcryptjs";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -16,6 +17,21 @@ type CliTicket = {
   description: string;
   priority: "low" | "medium" | "high";
 };
+
+function getSeedPassword(name: string): string {
+  const password = process.env[name];
+  if (
+    !password ||
+    password.length < 12 ||
+    Buffer.byteLength(password, "utf8") > 72 ||
+    /^(replace|placeholder|change-me)/i.test(password)
+  ) {
+    throw new Error(
+      `${name} must be set to a local password of 12 to 72 UTF-8 bytes.`
+    );
+  }
+  return password;
+}
 
 function stableUuid(value: string): string {
   const hex = createHash("sha256").update(value).digest("hex").slice(0, 32).split("");
@@ -37,6 +53,16 @@ function getCategory(title: string): string {
 }
 
 async function main(): Promise<void> {
+  const customerPassword = getSeedPassword("SUPPORTDESK_SEED_CUSTOMER_PASSWORD");
+  const agentPassword = getSeedPassword("SUPPORTDESK_SEED_AGENT_PASSWORD");
+  if (customerPassword === agentPassword) {
+    throw new Error("Sample customer and agent passwords must be different.");
+  }
+  const [customerPasswordHash, agentPasswordHash] = await Promise.all([
+    bcrypt.hash(customerPassword, 12),
+    bcrypt.hash(agentPassword, 12),
+  ]);
+
   const connectionString = process.env.DATABASE_URL;
 
   if (!connectionString) {
@@ -76,7 +102,7 @@ async function main(): Promise<void> {
         id: customerId,
         name: "Sample Customer",
         email: "day8.customer@supportdesk.test",
-        passwordHash: "seed-only-not-a-real-password-hash",
+        passwordHash: customerPasswordHash,
         role: UserRole.customer,
       },
     });
@@ -88,7 +114,7 @@ async function main(): Promise<void> {
         id: agentId,
         name: "Sample Support Agent",
         email: "day8.agent@supportdesk.test",
-        passwordHash: "seed-only-not-a-real-password-hash",
+        passwordHash: agentPasswordHash,
         role: UserRole.agent,
       },
     });
@@ -113,7 +139,7 @@ async function main(): Promise<void> {
 
       await prisma.ticket.upsert({
         where: { id },
-        update: data,
+        update: {},
         create: { id, ...data },
       });
     }

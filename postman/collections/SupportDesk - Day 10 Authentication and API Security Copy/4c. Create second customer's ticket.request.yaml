@@ -1,0 +1,30 @@
+$kind: http-request
+url: "{{baseUrl}}/tickets"
+method: POST
+headers:
+  Authorization: Bearer {{otherCustomerToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "title": "Other customer's ownership test",
+      "description": "Created by the second customer for an ownership check",
+      "priority": "P2",
+      "category": "account",
+      "creatorId": "{{customerId}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('second customer ticket is created', () => pm.response.to.have.status(201));
+      if (pm.response.code === 201) {
+        const ticket = pm.response.json().data;
+        pm.environment.set('otherTicketId', ticket.id);
+        pm.test('ticket belongs to authenticated second customer, not supplied creatorId', () => {
+          pm.expect(ticket.creatorId).to.eql(pm.environment.get('otherCustomerId'));
+          pm.expect(ticket.creatorId).not.to.eql(pm.environment.get('customerId'));
+        });
+      }
+    language: text/javascript
+order: 7000

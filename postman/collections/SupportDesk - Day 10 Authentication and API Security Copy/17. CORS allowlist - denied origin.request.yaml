@@ -1,0 +1,10 @@
+$kind: http-request
+url: "{{baseUrl}}/health"
+method: GET
+headers:
+  Origin: "{{blockedOrigin}}"
+scripts:
+  - type: afterResponse
+    code: pm.test('unlisted origin receives no CORS allow header', () => pm.expect(pm.response.headers.get('Access-Control-Allow-Origin')).to.be.undefined);
+    language: text/javascript
+order: 20000

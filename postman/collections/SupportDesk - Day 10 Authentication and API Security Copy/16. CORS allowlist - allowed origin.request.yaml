@@ -1,0 +1,10 @@
+$kind: http-request
+url: "{{baseUrl}}/health"
+method: GET
+headers:
+  Origin: "{{allowedOrigin}}"
+scripts:
+  - type: afterResponse
+    code: pm.test('allowlisted CORS origin is returned', () => pm.expect(pm.response.headers.get('Access-Control-Allow-Origin')).to.eql(pm.environment.get('allowedOrigin')));
+    language: text/javascript
+order: 19000

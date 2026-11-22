@@ -8,21 +8,47 @@ import {
 } from "../services/tickets.service";
 import {
   createTicketSchema,
+  ticketIdSchema,
   updateTicketSchema
 } from "../validators/tickets.schema";
+import { parseTicketQuery } from "../validators/tickets.query";
+import { getTicketPage } from "../services/tickets.service";
 
 export const getTickets = async (
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const tickets = await getAllTickets();
+    if (!req.user) {
+      res.status(401).json({
+        data: null,
+        error: { message: "Authentication required" },
+        meta: null
+      });
+      return;
+    }
+    const query = parseTicketQuery(req.query);
+    if (!query.success) {
+      res.status(400).json({
+        data: null,
+        error: {
+          message: "Invalid query parameters",
+          details: query.error.issues.map((issue) => ({
+            path: issue.path.map(String),
+            message: issue.message
+          }))
+        },
+        meta: null
+      });
+      return;
+    }
+    const result = await getTicketPage(query.data, req.user);
 
     res.status(200).json({
-      data: tickets,
+      data: result.data,
       error: null,
-      meta: null
+      meta: result.meta
     });
   } catch (error) {
     next(error);
@@ -35,7 +61,25 @@ export const getTicket = async (
   next: NextFunction
 ) => {
   try {
-    const ticket = await getTicketById(String(req.params.id));
+    if (!req.user) {
+      res.status(401).json({
+        data: null,
+        error: { message: "Authentication required" },
+        meta: null
+      });
+      return;
+    }
+    const id = ticketIdSchema.safeParse(String(req.params.id));
+    if (!id.success) {
+      res.status(400).json({
+        data: null,
+        error: { message: "Invalid ticket ID" },
+        meta: null
+      });
+      return;
+    }
+
+    const ticket = await getTicketById(id.data, req.user);
 
     if (!ticket) {
       res.status(404).json({
@@ -62,6 +106,15 @@ export const createNewTicket = async (
   next: NextFunction
 ) => {
   try {
+    if (!req.user) {
+      res.status(401).json({
+        data: null,
+        error: { message: "Authentication required" },
+        meta: null
+      });
+      return;
+    }
+
     const validation = createTicketSchema.safeParse(req.body);
 
     if (!validation.success) {
@@ -69,7 +122,10 @@ export const createNewTicket = async (
         data: null,
         error: {
           message: "Validation failed",
-          details: validation.error.issues
+          details: validation.error.issues.map((issue) => ({
+            path: issue.path.map(String),
+            message: issue.message
+          }))
         },
         meta: null
       });
@@ -78,8 +134,23 @@ export const createNewTicket = async (
 
     const { slaDueAt, ...ticketFields } = validation.data;
 
+    if (
+      req.user.role === "customer" &&
+      ("assigneeId" in validation.data ||
+        "status" in validation.data ||
+        "slaDueAt" in validation.data)
+    ) {
+      res.status(403).json({
+        data: null,
+        error: { message: "Forbidden" },
+        meta: null
+      });
+      return;
+    }
+
     const ticketData = {
       ...ticketFields,
+      creatorId: req.user.id,
       ...(slaDueAt !== undefined
         ? {
             slaDueAt:
@@ -106,6 +177,25 @@ export const updateExistingTicket = async (
   next: NextFunction
 ) => {
   try {
+    if (!req.user) {
+      res.status(401).json({
+        data: null,
+        error: { message: "Authentication required" },
+        meta: null
+      });
+      return;
+    }
+
+    const id = ticketIdSchema.safeParse(String(req.params.id));
+    if (!id.success) {
+      res.status(400).json({
+        data: null,
+        error: { message: "Invalid ticket ID" },
+        meta: null
+      });
+      return;
+    }
+
     const validation = updateTicketSchema.safeParse(req.body);
 
     if (!validation.success) {
@@ -113,7 +203,10 @@ export const updateExistingTicket = async (
         data: null,
         error: {
           message: "Validation failed",
-          details: validation.error.issues
+          details: validation.error.issues.map((issue) => ({
+            path: issue.path.map(String),
+            message: issue.message
+          }))
         },
         meta: null
       });
@@ -121,6 +214,20 @@ export const updateExistingTicket = async (
     }
 
     const { slaDueAt, ...ticketFields } = validation.data;
+
+    if (
+      req.user.role === "customer" &&
+      ("assigneeId" in validation.data ||
+        "status" in validation.data ||
+        "slaDueAt" in validation.data)
+    ) {
+      res.status(403).json({
+        data: null,
+        error: { message: "Forbidden" },
+        meta: null
+      });
+      return;
+    }
 
     const ticketData = {
       ...ticketFields,
@@ -132,10 +239,16 @@ export const updateExistingTicket = async (
         : {})
     };
 
-    const ticket = await editTicket(
-      String(req.params.id),
-      ticketData
-    );
+    const ticket = await editTicket(id.data, ticketData, req.user);
+
+    if (!ticket) {
+      res.status(404).json({
+        data: null,
+        error: { message: "Ticket not found" },
+        meta: null
+      });
+      return;
+    }
 
     res.status(200).json({
       data: ticket,
