@@ -1,12 +1,12 @@
 import { clearSession, getToken } from "./auth";
 
-export type ApiEnvelope<T> = {
+export type ApiEnvelope<T, M = unknown> = {
   data: T;
   error: null | {
     message: string;
     details?: unknown;
   };
-  meta: unknown;
+  meta: M;
 };
 
 export class ApiError extends Error {
@@ -28,7 +28,7 @@ export type ApiRequestOptions = Omit<RequestInit, "body"> & {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
-const isEnvelope = (value: unknown): value is ApiEnvelope<unknown> =>
+const isEnvelope = (value: unknown): value is ApiEnvelope<unknown, unknown> =>
   isRecord(value) && "data" in value && "error" in value && "meta" in value;
 
 const errorFrom = (value: unknown, fallback: string) => {
@@ -38,10 +38,10 @@ const errorFrom = (value: unknown, fallback: string) => {
   return { message: value.error.message, details: value.error.details };
 };
 
-export async function apiRequest<T>(
+export async function apiRequestEnvelope<T, M = unknown>(
   path: string,
   options: ApiRequestOptions = {}
-): Promise<T> {
+): Promise<ApiEnvelope<T, M>> {
   const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, "");
   if (!baseUrl) {
     throw new ApiError("The API base URL is not configured.", 0);
@@ -90,5 +90,13 @@ export async function apiRequest<T>(
   if (!isEnvelope(payload)) {
     throw new ApiError("The API returned an invalid response envelope.", response.status);
   }
-  return payload.data as T;
+  return payload as ApiEnvelope<T, M>;
+}
+
+export async function apiRequest<T>(
+  path: string,
+  options: ApiRequestOptions = {}
+): Promise<T> {
+  const response = await apiRequestEnvelope<T>(path, options);
+  return response.data;
 }

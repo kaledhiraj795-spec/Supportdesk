@@ -1,20 +1,24 @@
 import { useTickets } from "../hooks/useTickets";
+import { EmptyState } from "../../../components/EmptyState";
+import { ErrorState } from "../../../components/ErrorState";
+import { LoadingState } from "../../../components/LoadingState";
 
 export function TicketList() {
-  const { data: tickets, error, isPending, isError } = useTickets();
+  const { data: tickets, error, isPending, isError, refetch } = useTickets();
 
   if (isPending) {
-    return <p role="status" className="rounded-xl border border-slate-200 bg-white p-6 text-slate-600">Loading tickets…</p>;
+    return <LoadingState label="Loading tickets…" />;
   }
   if (isError) {
-    return <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-800">
-      {error instanceof Error ? error.message : "Tickets could not be loaded."}
-    </p>;
+    return (
+      <ErrorState
+        message={error instanceof Error ? error.message : "Tickets could not be loaded."}
+        onRetry={() => void refetch()}
+      />
+    );
   }
   if (tickets.length === 0) {
-    return <p className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-600">
-      No tickets to display yet.
-    </p>;
+    return <EmptyState title="No tickets yet" description="Tickets available to your account will appear here." />;
   }
 
   return (
