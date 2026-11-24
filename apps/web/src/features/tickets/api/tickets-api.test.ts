@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getTickets } from "./tickets-api";
+import { getAllTickets } from "./tickets-api";
 import { saveSession, type AuthSession } from "../../../lib/auth";
 
 const session: AuthSession = {
@@ -46,14 +46,14 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("getTickets", () => {
+describe("getAllTickets", () => {
   it("fetches every backend page before returning tickets for analytics", async () => {
     fetchMock
       .mockResolvedValueOnce(page(1, 3, "one"))
       .mockResolvedValueOnce(page(2, 3, "two"))
       .mockResolvedValueOnce(page(3, 3, "three"));
 
-    const result = await getTickets();
+    const result = await getAllTickets();
 
     expect(result.map((ticket) => ticket.id)).toEqual(["one", "two", "three"]);
     expect(fetchMock).toHaveBeenCalledTimes(3);

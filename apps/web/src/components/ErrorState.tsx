@@ -1,3 +1,5 @@
+import { Button } from "./ui/Button";
+
 type ErrorStateProps = {
   message: string;
   onRetry?: () => void;
@@ -11,13 +13,14 @@ export function ErrorState({ message, onRetry }: ErrorStateProps) {
     >
       <p>{message}</p>
       {onRetry && (
-        <button
+        <Button
+          variant="secondary"
           type="button"
           onClick={onRetry}
-          className="mt-4 rounded-lg border border-red-300 px-3 py-2 font-medium hover:bg-red-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700"
+          className="mt-4 border-red-300 text-red-800 hover:bg-red-100 focus-visible:outline-red-700"
         >
           Try again
-        </button>
+        </Button>
       )}
     </div>
   );
