@@ -2,17 +2,12 @@ import { Link } from "react-router-dom";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { LoadingState } from "../components/LoadingState";
-import { useTickets } from "../features/tickets/hooks/useTickets";
+import { Badge } from "../components/ui/Badge";
+import { Table, type TableColumn } from "../components/ui/Table";
+import { StatusBadge, ticketStatuses, ticketStatusLabels } from "../features/tickets/components/StatusBadge";
+import { useAllTickets } from "../features/tickets/hooks/useTickets";
 import type { Ticket } from "../features/tickets/api/tickets-api";
 import { getSession, type UserRole } from "../lib/auth";
-
-const statusLabels: Record<Ticket["status"], string> = {
-  open: "Open",
-  in_progress: "In Progress",
-  waiting_on_customer: "Waiting on Customer",
-  resolved: "Resolved",
-  closed: "Closed"
-};
 
 const roleCopy: Record<UserRole, { eyebrow: string; title: string; description: string }> = {
   customer: {
@@ -48,18 +43,63 @@ const formatDate = (value: string) => {
     : new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(date);
 };
 
+const recentTicketColumns: readonly TableColumn<Ticket>[] = [
+  {
+    key: "ticket",
+    header: "Ticket",
+    headerClassName: "px-5 sm:px-3",
+    cellClassName: "max-w-xs min-w-[240px] px-5 sm:px-3",
+    renderCell: (ticket) => (
+      <Link
+        to={`/tickets/${ticket.id}`}
+        className="block rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700"
+      >
+        <p className="truncate font-medium text-slate-900">{ticket.title}</p>
+        <p className="mt-1 truncate text-xs text-slate-500">{ticket.category}</p>
+      </Link>
+    )
+  },
+  {
+    key: "status",
+    header: "Status",
+    cellClassName: "whitespace-nowrap",
+    renderCell: (ticket) => <StatusBadge status={ticket.status} />
+  },
+  {
+    key: "priority",
+    header: "Priority",
+    cellClassName: "whitespace-nowrap",
+    renderCell: (ticket) => <Badge type="priority" value={ticket.priority} />
+  },
+  {
+    key: "created",
+    header: "Created",
+    cellClassName: "whitespace-nowrap",
+    renderCell: (ticket) => formatDate(ticket.createdAt)
+  }
+];
+
 type SummaryCardProps = {
   label: string;
   value: number | "—";
   accent: string;
+  to: string;
 };
 
-function SummaryCard({ label, value, accent }: SummaryCardProps) {
+function SummaryCard({ label, value, accent, to }: SummaryCardProps) {
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm font-medium text-slate-600">{label}</p>
-      <p className={`mt-3 text-3xl font-semibold tracking-tight ${accent}`}>{value}</p>
-    </article>
+    <Link
+      to={to}
+      className="group block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700"
+    >
+      <article className="h-full rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition group-hover:-translate-y-0.5 group-hover:border-indigo-200 group-hover:shadow-md">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm font-medium text-slate-600">{label}</p>
+          <span aria-hidden="true" className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-indigo-600">↗</span>
+        </div>
+        <p className={`mt-4 text-3xl font-bold tracking-tight ${accent}`}>{value}</p>
+      </article>
+    </Link>
   );
 }
 
@@ -95,7 +135,7 @@ function DistributionBar({ label, count, total, color }: DistributionBarProps) {
 export function DashboardPage() {
   const role = getSession()?.user.role ?? "customer";
   const copy = roleCopy[role];
-  const { data: tickets, error, isPending, isError, refetch } = useTickets();
+  const { data: tickets, error, isPending, isError, refetch } = useAllTickets();
   const values = tickets ?? [];
   const total = isPending || isError ? "—" : values.length;
   const openCount = isPending || isError ? "—" : countByStatus(values, "open");
@@ -108,28 +148,46 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-7">
-      <section className="overflow-hidden rounded-2xl bg-indigo-950 px-6 py-8 text-white shadow-sm sm:px-8 sm:py-10">
-        <p className="text-sm font-semibold text-indigo-200">{copy.eyebrow}</p>
-        <h1 className="mt-3 max-w-3xl text-2xl font-bold tracking-tight sm:text-3xl">{copy.title}</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-indigo-100 sm:text-base">{copy.description}</p>
+      <section className="relative isolate overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 px-6 py-7 text-white shadow-sm sm:px-8 sm:py-9">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-32 -z-10 size-80 rounded-full border-[52px] border-indigo-400/10" />
+        <div aria-hidden="true" className="pointer-events-none absolute -bottom-48 right-20 -z-10 size-96 rounded-full bg-indigo-500/10 blur-3xl" />
+        <div className="flex flex-wrap items-end justify-between gap-5">
+          <div className="max-w-3xl">
+            <p className="text-sm font-semibold text-indigo-200">{copy.eyebrow}</p>
+            <h1 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">{copy.title}</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-indigo-100 sm:text-base">{copy.description}</p>
+          </div>
+          <Link
+            to="/tickets/new"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            <span aria-hidden="true" className="text-lg leading-none">+</span>
+            New Ticket
+          </Link>
+        </div>
       </section>
 
       <section aria-label="Ticket summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard label="Total Tickets" value={total} accent="text-slate-900" />
-        <SummaryCard label="Open" value={openCount} accent="text-amber-700" />
-        <SummaryCard label="In Progress" value={inProgressCount} accent="text-blue-700" />
-        <SummaryCard label="Resolved / Closed" value={resolvedClosedCount} accent="text-emerald-700" />
+        <SummaryCard label="Total Tickets" value={total} accent="text-slate-900" to="/tickets" />
+        <SummaryCard label="Open" value={openCount} accent="text-amber-700" to="/tickets?status=open" />
+        <SummaryCard label="In Progress" value={inProgressCount} accent="text-blue-700" to="/tickets?status=in_progress" />
+        <SummaryCard
+          label="Resolved / Closed"
+          value={resolvedClosedCount}
+          accent="text-emerald-700"
+          to="/tickets?status=resolved&status=closed"
+        />
       </section>
 
       {showDistributions && !isPending && !isError && (
         <section aria-label="Ticket distributions" className="grid gap-5 lg:grid-cols-2">
-          <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <h2 className="font-semibold text-slate-900">Ticket status</h2>
             <div className="mt-5 space-y-4">
-              {(Object.keys(statusLabels) as Ticket["status"][]).map((status) => (
+              {ticketStatuses.map((status) => (
                 <DistributionBar
                   key={status}
-                  label={statusLabels[status]}
+                  label={ticketStatusLabels[status]}
                   count={countByStatus(values, status)}
                   total={values.length}
                   color={status === "resolved" || status === "closed" ? "bg-emerald-500" : "bg-indigo-500"}
@@ -137,7 +195,7 @@ export function DashboardPage() {
               ))}
             </div>
           </article>
-          <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <h2 className="font-semibold text-slate-900">Ticket priority</h2>
             <div className="mt-5 space-y-4">
               {(["P1", "P2", "P3", "P4"] as const).map((priority, index) => (
@@ -154,7 +212,7 @@ export function DashboardPage() {
         </section>
       )}
 
-      <section aria-labelledby="recent-tickets-heading" className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <section aria-labelledby="recent-tickets-heading" className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 sm:px-6">
           <div>
             <h2 id="recent-tickets-heading" className="font-semibold text-slate-900">Recent Tickets</h2>
@@ -162,7 +220,7 @@ export function DashboardPage() {
           </div>
           <Link
             to="/tickets"
-            className="rounded-lg px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700"
+            className="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700"
           >
             View all
           </Link>
@@ -180,30 +238,16 @@ export function DashboardPage() {
             <EmptyState title="No tickets yet" description="Tickets available to your account will appear here." />
           )}
           {!isPending && !isError && recentTickets.length > 0 && (
-            <div className="-mx-5 overflow-x-auto sm:mx-0">
-              <table className="w-full min-w-[640px] border-collapse text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-                    <th scope="col" className="px-5 py-3 font-medium sm:px-3">Ticket</th>
-                    <th scope="col" className="px-5 py-3 font-medium">Status</th>
-                    <th scope="col" className="px-5 py-3 font-medium">Priority</th>
-                    <th scope="col" className="px-5 py-3 font-medium">Created</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {recentTickets.map((ticket) => (
-                    <tr key={ticket.id} className="text-slate-700">
-                      <td className="max-w-xs px-5 py-4 sm:px-3">
-                        <p className="truncate font-medium text-slate-900">{ticket.title}</p>
-                        <p className="mt-1 truncate text-xs text-slate-500">{ticket.category}</p>
-                      </td>
-                      <td className="whitespace-nowrap px-5 py-4">{statusLabels[ticket.status]}</td>
-                      <td className="whitespace-nowrap px-5 py-4">{ticket.priority}</td>
-                      <td className="whitespace-nowrap px-5 py-4">{formatDate(ticket.createdAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="-mx-5 sm:mx-0">
+              <Table
+                ariaLabel="Recent tickets"
+                columns={recentTicketColumns}
+                rows={recentTickets}
+                getRowKey={(ticket) => ticket.id}
+                className="w-full min-w-[640px] border-collapse text-left text-sm"
+                headerRowClassName="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500"
+                rowClassName="text-slate-700 transition-colors hover:bg-slate-50"
+              />
             </div>
           )}
         </div>

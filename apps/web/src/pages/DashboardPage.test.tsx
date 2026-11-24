@@ -107,12 +107,20 @@ describe("DashboardPage", () => {
 
     const summary = screen.getByRole("region", { name: "Ticket summary" });
     expect(await within(summary).findByText("5")).toBeInTheDocument();
-    expect(within(summary).getByText("Open").parentElement).toHaveTextContent("1");
-    expect(within(summary).getByText("In Progress").parentElement).toHaveTextContent("1");
-    expect(within(summary).getByText("Resolved / Closed").parentElement).toHaveTextContent("2");
+    expect(within(summary).getByRole("link", { name: /^Open/ })).toHaveTextContent("1");
+    expect(within(summary).getByRole("link", { name: /^In Progress/ })).toHaveTextContent("1");
+    expect(within(summary).getByRole("link", { name: /^Resolved \/ Closed/ })).toHaveTextContent("2");
     expect(screen.getByRole("progressbar", { name: "Waiting on Customer tickets" })).toHaveAttribute("aria-valuenow", "1");
     expect(screen.getByRole("progressbar", { name: "P1 tickets" })).toHaveAttribute("aria-valuenow", "2");
     expect(await screen.findByText("Open ticket")).toBeInTheDocument();
+    expect(within(summary).getByRole("link", { name: /Total Tickets/ })).toHaveAttribute("href", "/tickets");
+    expect(within(summary).getByRole("link", { name: /^Open/ })).toHaveAttribute("href", "/tickets?status=open");
+    expect(within(summary).getByRole("link", { name: /^In Progress/ })).toHaveAttribute("href", "/tickets?status=in_progress");
+    expect(within(summary).getByRole("link", { name: /Resolved \/ Closed/ })).toHaveAttribute(
+      "href",
+      "/tickets?status=resolved&status=closed"
+    );
+    expect(screen.getByRole("link", { name: /Open ticket/ })).toHaveAttribute("href", "/tickets/ticket-open");
     expect(screen.getByRole("link", { name: "View all" })).toHaveAttribute("href", "/tickets");
   });
 
