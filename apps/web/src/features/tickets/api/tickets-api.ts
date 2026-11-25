@@ -56,6 +56,7 @@ export type CreateTicketCommentInput = {
   body: string;
   isInternal?: boolean;
 };
+export type TicketMetadataUpdate = Pick<Ticket, "category" | "priority">;
 export type CreateTicketInput = z.input<typeof createTicketSchema>;
 
 const pageSize = 100;
@@ -82,6 +83,12 @@ export const updateTicketStatus = (id: string, status: TicketStatus) =>
   apiRequest<Ticket>(`/tickets/${encodeURIComponent(id)}`, {
     method: "PATCH",
     body: JSON.stringify({ status })
+  });
+
+export const updateTicketMetadata = (id: string, input: TicketMetadataUpdate) =>
+  apiRequest<Ticket>(`/tickets/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input)
   });
 
 const isTicketPageMeta = (value: unknown): value is TicketPageMeta =>

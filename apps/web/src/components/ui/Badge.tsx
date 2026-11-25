@@ -43,15 +43,21 @@ type PriorityBadgeProps = {
   className?: string;
 };
 
-export type BadgeProps = StatusBadgeProps | PriorityBadgeProps;
+type CategoryBadgeProps = {
+  type: "category";
+  value: string;
+  className?: string;
+};
+
+export type BadgeProps = StatusBadgeProps | PriorityBadgeProps | CategoryBadgeProps;
 
 export function Badge(props: BadgeProps) {
-  const label = props.type === "status"
-    ? ticketStatusLabels[props.value]
-    : props.value;
+  const label = props.type === "status" ? ticketStatusLabels[props.value] : props.value;
   const tone = props.type === "status"
     ? statusClasses[props.value]
-    : priorityClasses[props.value];
+    : props.type === "priority"
+      ? priorityClasses[props.value]
+      : "bg-slate-100 text-slate-800";
 
   return (
     <span className={`inline-flex w-fit shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-semibold leading-5 ${tone} ${props.className ?? ""}`}>

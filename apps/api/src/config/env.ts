@@ -1,6 +1,30 @@
 import "dotenv/config";
 import { z } from "zod";
 
+const emptyEnvTextAsUndefined = (value: unknown) =>
+  typeof value === "string" && value.trim() === "" ? undefined : value;
+
+const optionalEnvText = z.preprocess(
+  emptyEnvTextAsUndefined,
+  z.string().trim().min(1).optional()
+);
+
+const envTextWithDefault = (defaultValue: string) =>
+  z.preprocess(
+    emptyEnvTextAsUndefined,
+    z.string().trim().min(1).default(defaultValue)
+  );
+
+const envGeminiApiMode = z.preprocess(
+  emptyEnvTextAsUndefined,
+  z.enum(["developer", "vertex"]).default("developer")
+);
+
+const optionalEnvRate = z.preprocess(
+  (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
+  z.coerce.number().finite().min(0).optional()
+);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
@@ -12,6 +36,11 @@ const envSchema = z.object({
       "JWT_SECRET must be replaced with a generated secret"
     ),
   JWT_EXPIRES_IN_SECONDS: z.coerce.number().int().min(60).default(3600),
+  GEMINI_API_KEY: optionalEnvText,
+  GEMINI_API_MODE: envGeminiApiMode,
+  GEMINI_MODEL: envTextWithDefault("gemini-3.8-flash"),
+  GEMINI_INPUT_COST_PER_1M: optionalEnvRate,
+  GEMINI_OUTPUT_COST_PER_1M: optionalEnvRate,
   CORS_ORIGINS: z.string().transform((value) =>
     value.split(",").map((origin) => origin.trim()).filter(Boolean)
   ).refine((origins) => origins.length > 0, "CORS_ORIGINS must contain at least one origin")

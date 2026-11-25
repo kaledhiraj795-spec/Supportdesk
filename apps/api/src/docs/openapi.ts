@@ -141,6 +141,36 @@ export const openApiDocument = {
         responses: { "200": { description: "Ticket updated" }, "400": { description: "Invalid input" }, "404": { description: "Ticket not found" }, "403": { description: "Forbidden" } }
       }
     },
+    "/tickets/{id}/ai/suggest-reply": {
+      post: {
+        summary: "Stream a reply draft for staff review",
+        description: "Uses the server-side Gemini integration configured with GEMINI_API_KEY.",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          "200": { description: "Server-sent events containing draft text deltas", content: { "text/event-stream": { schema: { type: "string" } } } },
+          "401": { description: "Authentication required" },
+          "403": { description: "Staff access required" },
+          "404": { description: "Ticket not found" },
+          "502": { description: "AI provider request failed" },
+          "503": { description: "AI features are not configured (GEMINI_API_KEY is unset)" }
+        }
+      }
+    },
+    "/tickets/{id}/ai/categorise": {
+      post: {
+        summary: "Suggest a ticket category and priority for staff review",
+        description: "Uses the server-side Gemini integration configured with GEMINI_API_KEY.",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          "200": { description: "Validated category and priority suggestion" },
+          "401": { description: "Authentication required" },
+          "403": { description: "Staff access required" },
+          "404": { description: "Ticket not found" },
+          "502": { description: "AI provider response was invalid" },
+          "503": { description: "AI features are not configured (GEMINI_API_KEY is unset)" }
+        }
+      }
+    },
     "/tickets/{ticketId}/comments": {
       get: {
         parameters: [{ name: "ticketId", in: "path", required: true, schema: { type: "string", format: "uuid" } }],

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError } from "../lib/api-client";
 import { getSession } from "../lib/auth";
@@ -9,7 +9,10 @@ import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { StatusBadge, ticketStatuses, ticketStatusLabels } from "../features/tickets/components/StatusBadge";
 import {
+  useApplyTicketAiSuggestion,
   useCreateTicketComment,
+  useSuggestTicketCategoryAndPriority,
+  useSuggestTicketReply,
   useTicket,
   useTicketComments,
   useUpdateTicketStatus
@@ -39,10 +42,20 @@ export function TicketDetailPage() {
   const commentsQuery = useTicketComments(id, ticketQuery.isSuccess);
   const commentMutation = useCreateTicketComment(id);
   const statusMutation = useUpdateTicketStatus(id);
+  const suggestReplyMutation = useSuggestTicketReply();
+  const categoriseMutation = useSuggestTicketCategoryAndPriority();
+  const applySuggestionMutation = useApplyTicketAiSuggestion(id);
   const [commentBody, setCommentBody] = useState("");
   const [commentAttempted, setCommentAttempted] = useState(false);
   const [isInternal, setIsInternal] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<TicketStatus | null>(null);
+  const [aiSuggestion, setAiSuggestion] = useState<{
+    category: string;
+    priority: "P1" | "P2" | "P3" | "P4";
+  } | null>(null);
+  const replyAbortController = useRef<AbortController | null>(null);
+
+  useEffect(() => () => replyAbortController.current?.abort(), []);
 
   if (ticketQuery.isPending) {
     return <LoadingState label="Loading ticket…" />;
@@ -85,6 +98,44 @@ export function TicketDetailPage() {
     event.preventDefault();
     if (!isStaff || !selectedStatus || selectedStatus === ticket.status || statusMutation.isPending) return;
     statusMutation.mutate(selectedStatus, { onSuccess: () => setSelectedStatus(null) });
+  };
+
+  const suggestReply = () => {
+    if (!isStaff || suggestReplyMutation.isPending || commentMutation.isPending) return;
+    const controller = new AbortController();
+    replyAbortController.current = controller;
+    setCommentAttempted(false);
+    setCommentBody((current) => current.trim() ? `${current}\n\n` : "");
+    suggestReplyMutation.mutate(
+      {
+        ticketId: id,
+        signal: controller.signal,
+        onChunk: (text) => setCommentBody((current) => current + text)
+      },
+      {
+        onSettled: () => {
+          if (replyAbortController.current === controller) {
+            replyAbortController.current = null;
+          }
+        }
+      }
+    );
+  };
+
+  const categoriseTicket = () => {
+    if (!isStaff || categoriseMutation.isPending || applySuggestionMutation.isPending) return;
+    setAiSuggestion(null);
+    categoriseMutation.mutate(id, { onSuccess: setAiSuggestion });
+  };
+
+  const applySuggestion = () => {
+    if (!isStaff || !aiSuggestion || applySuggestionMutation.isPending) return;
+    applySuggestionMutation.mutate({
+      category: aiSuggestion.category,
+      priority: aiSuggestion.priority
+    }, {
+      onSuccess: () => setAiSuggestion(null)
+    });
   };
 
   return (
@@ -195,7 +246,12 @@ export function TicketDetailPage() {
                 <h2 id="add-comment-title" className="text-base font-semibold text-slate-900">Add a comment</h2>
                 <p className="mt-1 text-sm text-slate-500">Your reply will be added to this conversation.</p>
               </div>
-              <form onSubmit={submitComment} noValidate aria-busy={commentMutation.isPending} className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+              <form
+                onSubmit={submitComment}
+                noValidate
+                aria-busy={commentMutation.isPending || suggestReplyMutation.isPending}
+                className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5"
+              >
                 <div className="space-y-1">
                   <label htmlFor="comment-body" className="block text-sm font-semibold text-slate-800">Message</label>
                   <textarea
@@ -216,6 +272,42 @@ export function TicketDetailPage() {
                     <p id="comment-body-error" role="alert" className="text-sm text-red-700">Enter a message before submitting.</p>
                   )}
                 </div>
+                {isStaff && (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={commentMutation.isPending}
+                      loading={suggestReplyMutation.isPending}
+                      loadingText="Generating draft…"
+                      onClick={suggestReply}
+                    >
+                      Suggest Reply
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={applySuggestionMutation.isPending}
+                      loading={categoriseMutation.isPending}
+                      loadingText="Categorising…"
+                      onClick={categoriseTicket}
+                    >
+                      Auto-categorise
+                    </Button>
+                  </div>
+                )}
+                {isStaff && suggestReplyMutation.isSuccess && (
+                  <p role="status" aria-live="polite" className="text-sm text-indigo-800">
+                    AI draft added to the message box. Review it before posting.
+                  </p>
+                )}
+                {isStaff && suggestReplyMutation.isError && (
+                  <p role="alert" aria-live="assertive" className="text-sm text-red-700">
+                    {suggestReplyMutation.error instanceof Error
+                      ? suggestReplyMutation.error.message
+                      : "AI reply could not be generated."}
+                  </p>
+                )}
                 {isStaff && (
                   <label htmlFor="comment-internal" className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm text-slate-700 hover:bg-white">
                     <input
@@ -239,13 +331,57 @@ export function TicketDetailPage() {
                 )}
                 <Button
                   type="submit"
-                  loading={commentMutation.isPending}
-                  loadingText="Posting…"
+                  disabled={suggestReplyMutation.isPending}
+                  loading={commentMutation.isPending || suggestReplyMutation.isPending}
+                  loadingText={commentMutation.isPending ? "Posting…" : "Drafting reply…"}
                   className="px-5"
                 >
                   Post comment
                 </Button>
               </form>
+              {isStaff && categoriseMutation.isError && (
+                <p role="alert" aria-live="assertive" className="mt-3 text-sm text-red-700">
+                  {categoriseMutation.error instanceof Error
+                    ? categoriseMutation.error.message
+                    : "Ticket categorisation could not be suggested."}
+                </p>
+              )}
+              {isStaff && applySuggestionMutation.isError && (
+                <p role="alert" aria-live="assertive" className="mt-3 text-sm text-red-700">
+                  {applySuggestionMutation.error instanceof Error
+                    ? applySuggestionMutation.error.message
+                    : "The AI suggestion could not be applied."}
+                </p>
+              )}
+              {isStaff && applySuggestionMutation.isSuccess && (
+                <p role="status" aria-live="polite" className="mt-3 text-sm text-emerald-700">
+                  AI suggestion applied to the ticket.
+                </p>
+              )}
+              {isStaff && aiSuggestion && (
+                <section
+                  aria-label="AI suggestion"
+                  className="mt-4 space-y-3 rounded-xl border border-indigo-200 bg-indigo-50/60 p-4"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-800">AI Suggestion</span>
+                    <Badge type="category" value={aiSuggestion.category} />
+                    <Badge type="priority" value={aiSuggestion.priority} />
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    Review these values before applying them to the ticket.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    loading={applySuggestionMutation.isPending}
+                    loadingText="Applying…"
+                    onClick={applySuggestion}
+                  >
+                    Apply suggestion
+                  </Button>
+                </section>
+              )}
             </section>
           </div>
         </article>

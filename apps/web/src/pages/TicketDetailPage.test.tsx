@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import { within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -61,6 +62,8 @@ const sessionFor = (role: UserRole): AuthSession => ({
 
 const fetchMock = vi.fn<typeof fetch>();
 let currentStatus = "in_progress";
+let currentCategory = ticket.category;
+let currentPriority = ticket.priority;
 let currentComments = [...comments];
 const jsonResponse = (data: unknown, status = 200) =>
   new Response(JSON.stringify({
@@ -70,6 +73,18 @@ const jsonResponse = (data: unknown, status = 200) =>
   }), {
     status,
     headers: { "Content-Type": "application/json" }
+  });
+
+const sseResponse = (events: string[]) =>
+  new Response(new ReadableStream({
+    start(controller) {
+      for (const event of events) {
+        controller.enqueue(new TextEncoder().encode(event));
+      }
+      controller.close();
+    }
+  }), {
+    headers: { "Content-Type": "text/event-stream; charset=utf-8" }
   });
 
 const renderDetail = (role: UserRole = "agent", queryClient = new QueryClient({
@@ -94,9 +109,24 @@ beforeEach(() => {
   vi.stubGlobal("fetch", fetchMock);
   fetchMock.mockReset();
   currentStatus = "in_progress";
+  currentCategory = ticket.category;
+  currentPriority = ticket.priority;
   currentComments = [...comments];
   fetchMock.mockImplementation(async (input, init) => {
     const url = new URL(String(input));
+    if (url.pathname === "/tickets/ticket-42/ai/suggest-reply") {
+      return sseResponse([
+        'event: delta\ndata: {"text":"Thanks for reaching out."}\n\n',
+        'event: done\ndata: {}\n\n'
+      ]);
+    }
+    if (url.pathname === "/tickets/ticket-42/ai/categorise") {
+      return jsonResponse({
+        category: "Billing",
+        priority: "P1",
+        promptVersion: "auto-categorise-v1"
+      });
+    }
     if (url.pathname === "/tickets/ticket-42/comments" && init?.method === "POST") {
       const requestBody = JSON.parse(String(init.body)) as { body: string; isInternal?: boolean };
       const created = {
@@ -111,18 +141,35 @@ beforeEach(() => {
       return jsonResponse(created, 201);
     }
     if (url.pathname === "/tickets/ticket-42" && init?.method === "PATCH") {
-      currentStatus = (JSON.parse(String(init.body)) as { status: string }).status;
-      return jsonResponse({ ...ticket, status: currentStatus });
+      const patch = JSON.parse(String(init.body)) as {
+        status?: string;
+        category?: string;
+        priority?: string;
+      };
+      currentStatus = patch.status ?? currentStatus;
+      currentCategory = patch.category ?? currentCategory;
+      currentPriority = patch.priority ?? currentPriority;
+      return jsonResponse({
+        ...ticket,
+        status: currentStatus,
+        category: currentCategory,
+        priority: currentPriority
+      });
     }
     if (url.pathname === "/tickets/ticket-42/comments") {
       return jsonResponse(currentComments);
     }
     if (url.pathname === "/tickets/ticket-42") {
-      return jsonResponse({ ...ticket, status: currentStatus });
+      return jsonResponse({
+        ...ticket,
+        status: currentStatus,
+        category: currentCategory,
+        priority: currentPriority
+      });
     }
     if (url.pathname === "/tickets") {
       return jsonResponse({
-        data: [{ ...ticket, status: currentStatus }],
+        data: [{ ...ticket, status: currentStatus, category: currentCategory, priority: currentPriority }],
         error: null,
         meta: { page: 1, limit: 20, total: 1, totalPages: 1 }
       });
@@ -179,6 +226,8 @@ describe("TicketDetailPage", () => {
     expect(screen.queryByText("Internal note")).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox", { name: /Internal note/ })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Update status")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Suggest Reply" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Auto-categorise" })).not.toBeInTheDocument();
     expect(screen.queryByText("agent-3")).not.toBeInTheDocument();
     expect(screen.queryByText("customer-7")).not.toBeInTheDocument();
     expect(screen.getByText("Support team")).toBeInTheDocument();
@@ -276,5 +325,67 @@ describe("TicketDetailPage", () => {
     fetchMock.mockRejectedValue(new TypeError("fetch failed"));
     renderDetail();
     expect(await screen.findByRole("alert")).toHaveTextContent("Unable to reach the SupportDesk API");
+  });
+
+  it("streams a staff reply draft into the composer without posting it", async () => {
+    const user = userEvent.setup();
+    renderDetail("agent");
+    await screen.findByRole("heading", { name: ticket.title });
+
+    await user.click(screen.getByRole("button", { name: "Suggest Reply" }));
+
+    const message = await screen.findByRole("textbox", { name: "Message" });
+    expect(message).toHaveValue("Thanks for reaching out.");
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "AI draft added to the message box. Review it before posting."
+    );
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      new URL(String(input)).pathname.endsWith("/comments") && init?.method === "POST"
+    )).toBe(false);
+  });
+
+  it("shows an AI suggestion for review and applies it only when requested", async () => {
+    const user = userEvent.setup();
+    renderDetail("agent");
+    await screen.findByRole("heading", { name: ticket.title });
+
+    await user.click(screen.getByRole("button", { name: "Auto-categorise" }));
+    const suggestion = await screen.findByRole("region", { name: "AI suggestion" });
+    expect(within(suggestion).getByText("AI Suggestion")).toBeInTheDocument();
+    expect(within(suggestion).getByText("Billing")).toBeInTheDocument();
+    expect(within(suggestion).getByText("P1")).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      new URL(String(input)).pathname === "/tickets/ticket-42" && init?.method === "PATCH"
+    )).toBe(false);
+
+    await user.click(within(suggestion).getByRole("button", { name: "Apply suggestion" }));
+    expect(await screen.findByText("AI suggestion applied to the ticket.")).toBeInTheDocument();
+    const patchRequest = fetchMock.mock.calls.find(([input, init]) =>
+      new URL(String(input)).pathname === "/tickets/ticket-42" && init?.method === "PATCH"
+    );
+    expect(JSON.parse(String(patchRequest?.[1]?.body))).toEqual({
+      category: "Billing",
+      priority: "P1"
+    });
+  });
+
+  it("announces an AI reply stream error", async () => {
+    const user = userEvent.setup();
+    const fetch = fetchMock.getMockImplementation();
+    if (!fetch) throw new Error("Missing test fetch implementation.");
+    fetchMock.mockImplementation(async (input, init) => {
+      if (new URL(String(input)).pathname.endsWith("/ai/suggest-reply")) {
+        return sseResponse([
+          'event: error\ndata: {"message":"AI provider request failed."}\n\n'
+        ]);
+      }
+      return fetch(input, init);
+    });
+    renderDetail("agent");
+    await screen.findByRole("heading", { name: ticket.title });
+
+    await user.click(screen.getByRole("button", { name: "Suggest Reply" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("AI provider request failed.");
   });
 });
