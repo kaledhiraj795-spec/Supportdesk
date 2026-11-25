@@ -4,11 +4,18 @@ import {
   createTicketComment,
   getTicket,
   getTicketComments,
+  updateTicketMetadata,
   updateTicketStatus,
   type CreateTicketCommentInput,
   type CreateTicketInput,
+  type TicketMetadataUpdate,
   type TicketStatus
 } from "../api/tickets-api";
+import {
+  streamTicketReplyDraft,
+  suggestTicketCategoryAndPriority,
+  type TicketAiSuggestion
+} from "../api/ticket-ai-api";
 
 export const useTicket = (id: string) =>
   useQuery({
@@ -51,6 +58,33 @@ export const useUpdateTicketStatus = (id: string) => {
     onSuccess: () => Promise.all([
       queryClient.invalidateQueries({ queryKey: ["tickets", id] }),
       queryClient.invalidateQueries({ queryKey: ["tickets", id, "comments"] }),
+      queryClient.invalidateQueries({ queryKey: ["tickets", "list"] }),
+      queryClient.invalidateQueries({ queryKey: ["tickets", "all"] })
+    ])
+  });
+};
+
+export const useSuggestTicketReply = () =>
+  useMutation({
+    mutationFn: (input: {
+      ticketId: string;
+      onChunk: (text: string) => void;
+      signal?: AbortSignal;
+    }) => streamTicketReplyDraft(input.ticketId, input.onChunk, input.signal)
+  });
+
+export const useSuggestTicketCategoryAndPriority = () =>
+  useMutation({
+    mutationFn: (ticketId: string): Promise<TicketAiSuggestion> =>
+      suggestTicketCategoryAndPriority(ticketId)
+  });
+
+export const useApplyTicketAiSuggestion = (id: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: TicketMetadataUpdate) => updateTicketMetadata(id, input),
+    onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["tickets", id] }),
       queryClient.invalidateQueries({ queryKey: ["tickets", "list"] }),
       queryClient.invalidateQueries({ queryKey: ["tickets", "all"] })
     ])

@@ -212,3 +212,20 @@
   - `npm run build --prefix apps/web` — PASS; Vite 8.3.8 transformed 83 modules.
   - UI component search for direct `fetch`/`apiRequest` calls — PASS, no matches.
 - No backend API or environment files were changed.
+
+## Entry 16: Day 16 AI Features
+
+- Date: 2026-11-24
+- Planning prompt: “Implement Day 16 — AI Features Inside SupportDesk: add a server-only Google Gemini integration for agent-reviewed streamed reply drafts and validated ticket category/priority suggestions. Keep keys out of the web app, use versioned prompts separated from untrusted ticket data, never auto-send or persist model output, enforce staff authorization, test with mocked provider responses, and verify API/web typecheck, tests, and builds.”
+- SDK check: The API uses `@google/genai` (`GoogleGenAI`) only in `apps/api`. Suggest Reply uses `models.generateContentStream`; categorisation uses `models.generateContent` with JSON MIME output and strict Zod validation.
+- Architectural decisions:
+  - `GEMINI_API_KEY` and Gemini pricing configuration are optional, blank values are treated as unset, the model defaults to `gemini-3.8-flash`, and client construction is lazy. `GEMINI_API_MODE` explicitly selects the Gemini Developer API (default) or Vertex AI Express; key prefixes alone do not select a backend. Keys are never included in server diagnostics. Non-AI routes therefore do not require a Gemini key. Pricing is only reported when both per-million rates are configured.
+  - Versioned prompt modules keep trusted system instructions separate from JSON-encoded ticket context. Suggest Reply receives the ticket and latest public comments (never internal notes); ticket text is treated as untrusted. Safe diagnostics and usage logs contain no ticket text or API keys.
+  - Usage logging records Gemini `usageMetadata` token counts and only emits estimated cost when the configured rates and token counts are valid.
+  - The AI category allowlist matches the repository seed categories (`Account`, `Billing`, `Technical Support`, `General`) and priorities are the existing `P1`–`P4` values. Categorisation output is strict-Zod-validated and returned as a suggestion only.
+  - Both AI routes require agent/admin authorization, with an additional service-level role check. Reply deltas stream as SSE into the existing agent comment composer; the form is not submitted automatically. Applying a category/priority suggestion is an explicit staff action through the existing ticket PATCH contract.
+- Verification:
+  - API SDK dependency: PASS; `@google/genai@3.6.1`, confined to `apps/api`.
+  - `npm run typecheck`, `npm run typecheck:test`, `npm test` (75 tests across 11 files), and `npm run build` in `apps/api` — PASS.
+  - `npm run typecheck`, `npm test` (67 tests across 14 files), and `npm run build` in `apps/web` — PASS.
+  - `GEMINI_API_KEY` and `@google/genai` search in `apps/web` — no matches.
