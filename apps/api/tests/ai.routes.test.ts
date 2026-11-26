@@ -51,6 +51,20 @@ describe("ticket AI routes", () => {
     expect(mocks.prepareSuggestReplyForTicket).not.toHaveBeenCalled();
   });
 
+  it.each(["categorise", "suggest-reply"])(
+    "rejects an invalid ticket ID on the %s route before invoking AI",
+    async (feature) => {
+      const response = await request(app)
+        .post(`/tickets/not-a-uuid/ai/${feature}`)
+        .set("Authorization", `Bearer ${tokenFor("agent")}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body.error.message).toBe("Invalid ticket ID");
+      expect(mocks.suggestCategoryAndPriorityForTicket).not.toHaveBeenCalled();
+      expect(mocks.prepareSuggestReplyForTicket).not.toHaveBeenCalled();
+    }
+  );
+
   it("returns the validated suggestion envelope to an authenticated agent", async () => {
     const response = await request(app)
       .post(`/tickets/${ticketId}/ai/categorise`)
@@ -99,6 +113,10 @@ describe("ticket AI routes", () => {
     expect(response.text).toContain('event: delta\ndata: {"text":"Please "}');
     expect(response.text).toContain('event: delta\ndata: {"text":"try again."}');
     expect(response.text).toContain("event: done");
+    expect(mocks.prepareSuggestReplyForTicket).toHaveBeenCalledWith(
+      ticketId,
+      expect.objectContaining({ role: "admin" })
+    );
   });
 
   it("sends a safe SSE error when reply streaming is interrupted", async () => {

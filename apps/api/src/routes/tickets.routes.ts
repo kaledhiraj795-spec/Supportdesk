@@ -12,8 +12,8 @@ import { aiRateLimiter } from "../middlewares/ai-rate-limit";
 const router = Router();
 
 router.use(requireAuth, requireRole("customer", "agent", "admin"));
-router.post("/:id/ai/suggest-reply", aiRateLimiter, requireRole("agent", "admin"), suggestReply);
-router.post("/:id/ai/categorise", aiRateLimiter, requireRole("agent", "admin"), categoriseTicket);
+router.post("/:id/ai/suggest-reply", requireRole("agent", "admin"), aiRateLimiter, suggestReply);
+router.post("/:id/ai/categorise", requireRole("agent", "admin"), aiRateLimiter, categoriseTicket);
 router.get("/", getTickets);
 router.get("/:id", getTicket);
 router.post("/", createNewTicket);

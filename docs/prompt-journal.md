@@ -229,3 +229,79 @@
   - `npm run typecheck`, `npm run typecheck:test`, `npm test` (75 tests across 11 files), and `npm run build` in `apps/api` — PASS.
   - `npm run typecheck`, `npm test` (67 tests across 14 files), and `npm run build` in `apps/web` — PASS.
   - `GEMINI_API_KEY` and `@google/genai` search in `apps/web` — no matches.
+
+## Entry 17: Day 17 AI Guardrails and Evaluation
+
+- Date: 2026-11-26
+- Task: Close the Day 17 acceptance gaps without altering unrelated user work: add provider moderation, per-user AI throttling, provider timeout handling, manual fallback, failure-isolation tests, and a labelled-ticket evaluation runner.
+- Prompt Used: “Continue Day 17 based on the latest acceptance audit. Complete the outstanding implementation tasks without disturbing existing committed changes or unrelated working-tree changes. Do not invent the lead dataset or claim official accuracy.”
+- Implementation: Added Gemini harm safety settings for harassment, hate speech, sexually explicit, and dangerous content; configurable provider timeout; timeout-safe API responses for initial requests and streaming; authenticated user-ID rate-limit keys after staff authorization; exact manual fallback message “AI unavailable — reply manually.”; tests that manual comments, ticket creation, and updates continue after AI timeout; and `npm run ai:evaluate` for exactly 20 unique labelled tickets with category, priority, and exact-match metrics.
+- Dataset and Evaluation: No lead-supplied 20-ticket dataset was available. No evaluation run, predictions, or official accuracy are claimed. `docs/day-17-evaluation-report.md` documents the input contract, metric formulas, and pending state.
+- Verification:
+  - API source typecheck — PASS.
+  - API test typecheck — PASS.
+  - Historical full API suite at Entry 17 checkpoint — PASS, 109 tests across 16 files.
+  - Web typecheck — PASS.
+  - Historical full web suite at Entry 17 checkpoint — PASS, 68 tests across 14 files.
+  - Evaluator without a dataset — expected exit code 2 with usage; no provider call or fabricated data.
+  - Live Gemini moderation/timeout behavior — NOT RUN; requires authorized provider credentials and an approved dataset.
+- Learning: Report exact test evidence and distinguish prompt-construction assertions from model evaluations. Evaluation tooling must reject missing or mislabeled rows rather than infer or generate the lead's data.
+
+## Entry 18: AI Suggestion Ticket-Context Regression
+
+- Date: 2026-11-26
+- Task: Investigate an unrelated AI reply draft reported for a login ticket and prevent stale ticket/draft state from affecting the agent composer.
+- Prompt Used: “Investigate the AI Suggestion feature: trace ticket ID and context through the frontend/API/provider path, inspect prompt and caching behavior, find the root cause, fix it without regressing other ticket types, and add context-accuracy regression tests. Do not create a branch, commit, push, or PR.”
+- Findings: The reply API validates and forwards the requested ticket ID, the service fetches the ticket and comments using that ID, and the provider request is built fresh from that ticket's context; no cross-ticket response cache was found. The page could retain an old composer draft across route changes, and regeneration appended to the previous generated draft. The exact live model answer remains unproven without the original ticket and provider exchange.
+- Changes: Upgraded the reply prompt to `suggest-reply-v3` with stronger issue-specific grounding; clear per-ticket state and abort stale reply streams on route changes; replace prior generated draft on regeneration while preserving manually typed text; add backend context-isolation and route-ID tests plus frontend regeneration and ticket-switch tests.
+- Verification:
+  - API source typecheck — PASS.
+  - API test typecheck — PASS.
+  - Historical full API suite at Entry 18 checkpoint — PASS, 110 tests across 16 files.
+  - Web typecheck — PASS.
+  - Historical full web suite at Entry 18 checkpoint — PASS, 70 tests across 14 files.
+  - `git diff --check` — PASS.
+- Limitations: Context fixtures are synthetic regression data, not lead-supplied tickets or an official evaluation set. No live Gemini request was made; model behavior for the reported login ticket remains unverified.
+
+## Entry 19: Complete, Ticket-Grounded Reply Regression
+
+- Date: 2026-11-26
+- Task: Restore complete professional reply drafts and further investigate the reported login-ticket support-form response.
+- Findings: The ticket route, service, and database queries remain scoped to the requested ticket ID, and the subject, description, and public conversation are sent in a fresh provider request. No cross-ticket cache or ID mismatch was found. The v3 prompt asked for a concise reply and allowed a focused clarification when details were insufficient, without requiring the full reply structure; that left room for a single-sentence draft.
+- Changes: Upgraded to `suggest-reply-v4`; require a greeting, issue-specific acknowledgement, relevant troubleshooting or a focused question, clear next step, and professional closing. Clarification must be part of a complete reply. Unsupported forms/workflows and invented facts are disallowed. Promoted the ticket subject to an explicit `<ticket_subject>` context field and extended API context/isolation plus web request-ID regressions.
+- Verification:
+  - API source typecheck — PASS.
+  - API test typecheck — PASS.
+  - Historical full API suite at Entry 19 checkpoint — PASS, 111 tests across 16 files; superseded by Entry 21's final verification.
+  - Web typecheck — PASS.
+  - Historical full web suite at Entry 19 checkpoint — PASS, 70 tests across 14 files.
+  - Focused AI service, route, usage logger, and ticket detail tests — PASS, 43 tests total.
+- Limitations: The login ticket ID/context and provider exchange were not supplied, and no live Gemini request was made. Tests establish the prompt and context contract, not model compliance on the reported ticket.
+
+## Entry 20: Weak Reply Quality Retest
+
+- Date: 2026-11-26
+- Task: Address v4 response-evaluation failures around unsupported promises, sensitive information requests, repeated questions, and language quality.
+- Changes: Upgraded to `suggest-reply-v5`. The prompt now prohibits unsupported future actions and internal log/system-access claims; restricts questions to missing, non-sensitive information; tells the model not to repeat information already supplied; and directs it to proofread. Updated prompt contract and usage-version tests.
+- Live evidence: Retested the 18 weak synthetic cases against `gemini-3.5-flash-lite` using the same in-memory ticket/comment fixtures. No production database or real customer tickets were accessed. Four transient provider errors (two 503 `UNAVAILABLE`, two 429 `RESOURCE_EXHAUSTED`) recovered on retry.
+- Score: Including the two unchanged previously passing cases, 101/120 checks = 16.83/20 = 84.17%. The target is met, but 10 cases still miss at least one criterion; most persistent issues are unsupported future actions or claims.
+- Verification:
+  - Prompt contract and usage-version tests — PASS, 21 tests.
+  - API source and test typechecks — PASS.
+  - Historical full API suite at Entry 20 prompt-v5 checkpoint — PASS, 111 tests across 16 files; superseded by Entry 21's final verification.
+- Limitations: These are synthetic reply-quality checks, not the lead's official category/priority dataset or malicious samples. Model adherence is not deterministic; the report preserves each generated response and outstanding issues.
+
+## Entry 21: Final Day 17 Security and Composer Regressions
+
+- Date: 2026-11-26
+- Task: Fix the final review findings for password-value detection, edits during AI reply streaming, and outdated Day 17 test totals.
+- Changes: Extend deterministic password masking/output rejection to “was” phrasing as well as “is”, colon, and equals forms; prevent later AI stream chunks from replacing manually edited composer text; add input/output and active-stream regressions; reconcile Day 17 report totals while retaining earlier counts as historical checkpoints.
+- Verification:
+  - Focused API guardrail/service tests — PASS, 43 tests across 2 files.
+  - Ticket detail composer tests — PASS, 18 tests.
+  - Full API suite — PASS, 121 tests across 16 files.
+  - Full web suite — PASS, 71 tests across 14 files.
+  - API source, API test, and web typechecks — PASS.
+  - `git diff --check` — PASS.
+- Safety: The full API suite used the isolated `supportdesk_test` database and synthetic fixtures. No production data or database was accessed. No branch, commit, push, or PR was created.
+- Remaining risk: Pattern-based detection cannot identify every unlabelled credential or unknown credential format. Lead-supplied malicious samples and labelled evaluation data remain unavailable.

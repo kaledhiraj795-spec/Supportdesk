@@ -6,11 +6,11 @@ import {
   addTicket,
   editTicket
 } from "../services/tickets.service";
+import { ticketIdSchema } from "../validators/tickets.schema";
 import {
-  createTicketSchema,
-  ticketIdSchema,
-  updateTicketSchema
-} from "../validators/tickets.schema";
+  createTicketApiSchema,
+  updateTicketApiSchema
+} from "../validators/tickets.api.schema";
 import { parseTicketQuery } from "../validators/tickets.query";
 import { getTicketPage } from "../services/tickets.service";
 
@@ -115,7 +115,7 @@ export const createNewTicket = async (
       return;
     }
 
-    const validation = createTicketSchema.safeParse(req.body);
+    const validation = createTicketApiSchema.safeParse(req.body);
 
     if (!validation.success) {
       res.status(400).json({
@@ -196,7 +196,7 @@ export const updateExistingTicket = async (
       return;
     }
 
-    const validation = updateTicketSchema.safeParse(req.body);
+    const validation = updateTicketApiSchema.safeParse(req.body);
 
     if (!validation.success) {
       res.status(400).json({

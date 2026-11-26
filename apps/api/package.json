@@ -9,6 +9,7 @@
     "start": "tsx src/server.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:setup-sample-agent": "tsx prisma/setup-sample-agent.ts",
+    "ai:evaluate": "tsx src/ai/evaluation.cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

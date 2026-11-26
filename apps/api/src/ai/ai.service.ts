@@ -7,6 +7,7 @@ import { ticketAiSuggestionSchema } from "./ai.schemas";
 import { getGeminiClient } from "./client";
 import { AiFeatureError } from "./errors";
 import { getAiProviderErrorDetails } from "./provider-error";
+import { AI_SAFETY_SETTINGS } from "./safety";
 import {
   buildUserContext as buildCategorisationContext,
   PROMPT_VERSION as CATEGORISE_PROMPT_VERSION,
@@ -85,6 +86,23 @@ const logProviderFailure = (
   error === undefined ? undefined : getAiProviderErrorDetails(error)
 );
 
+const isProviderTimeout = (error: unknown): boolean =>
+  error instanceof Error &&
+  (/timeout/i.test(error.name) || /timed?\s*out|timeout/i.test(error.message));
+
+const providerRequestError = (error: unknown, feature: AiFeature, promptVersion: string) => {
+  const timedOut = isProviderTimeout(error);
+  logProviderFailure(
+    feature,
+    promptVersion,
+    timedOut ? "provider_timeout" : "provider_request_failed",
+    error
+  );
+  return timedOut
+    ? new AiFeatureError("AI provider request timed out.", 504)
+    : new AiFeatureError("AI provider request failed.", 502);
+};
+
 export async function prepareSuggestReplyForTicket(
   ticketId: string,
   identity: AuthIdentity
@@ -106,11 +124,13 @@ export async function prepareSuggestReplyForTicket(
     stream = await client.models.generateContentStream({
       model: env.GEMINI_MODEL,
       contents: buildReplyContext(ticket, publicComments),
-      config: { systemInstruction: REPLY_SYSTEM_INSTRUCTIONS }
+      config: {
+        systemInstruction: REPLY_SYSTEM_INSTRUCTIONS,
+        safetySettings: AI_SAFETY_SETTINGS
+      }
     });
   } catch (error) {
-    logProviderFailure("suggest_reply", REPLY_PROMPT_VERSION, "provider_request_failed", error);
-    throw new AiFeatureError("AI provider request failed.", 502);
+    throw providerRequestError(error, "suggest_reply", REPLY_PROMPT_VERSION);
   }
 
   return (async function* () {
@@ -125,6 +145,10 @@ export async function prepareSuggestReplyForTicket(
         }
       }
     } catch (error) {
+      if (isProviderTimeout(error)) {
+        logProviderFailure("suggest_reply", REPLY_PROMPT_VERSION, "provider_timeout", error);
+        throw new AiFeatureError("AI provider request timed out.", 504);
+      }
       logProviderFailure("suggest_reply", REPLY_PROMPT_VERSION, "stream_interrupted", error);
       throw new AiFeatureError("AI reply generation was interrupted.", 502);
     }
@@ -175,12 +199,12 @@ export async function suggestCategoryAndPriorityForTicket(
       config: {
         systemInstruction: CATEGORISE_SYSTEM_INSTRUCTIONS,
         responseMimeType: "application/json",
-        temperature: 0
+        temperature: 0,
+        safetySettings: AI_SAFETY_SETTINGS
       }
     });
   } catch (error) {
-    logProviderFailure("categorise_ticket", CATEGORISE_PROMPT_VERSION, "provider_request_failed", error);
-    throw new AiFeatureError("AI provider request failed.", 502);
+    throw providerRequestError(error, "categorise_ticket", CATEGORISE_PROMPT_VERSION);
   }
 
   const providerUsage = usageFromMetadata(response.usageMetadata);

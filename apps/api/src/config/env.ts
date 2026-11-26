@@ -45,6 +45,7 @@ const envSchema = z.object({
   GEMINI_API_KEY: optionalEnvText,
   GEMINI_API_MODE: envGeminiApiMode,
   GEMINI_MODEL: envTextWithDefault("gemini-3.8-flash"),
+  GEMINI_REQUEST_TIMEOUT_MS: envPositiveIntWithDefault(30_000),
   AI_TICKET_DESCRIPTION_MAX_LENGTH: envPositiveIntWithDefault(4000),
   AI_RECENT_COMMENT_MAX_LENGTH: envPositiveIntWithDefault(1000),
   AI_RECENT_COMMENTS_MAX_COUNT: envPositiveIntWithDefault(10),

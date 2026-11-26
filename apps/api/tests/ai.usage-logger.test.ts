@@ -34,7 +34,7 @@ describe("AI usage logging", () => {
     logAiUsage({
       feature: "suggest_reply",
       model: "test-model",
-      promptVersion: "suggest-reply-v2",
+      promptVersion: "suggest-reply-v5",
       usage: { promptTokenCount: 1, candidatesTokenCount: 1, totalTokenCount: 2 }
     }, {});
     expect(log.mock.calls[0][1]).not.toHaveProperty("estimatedCostUsd");

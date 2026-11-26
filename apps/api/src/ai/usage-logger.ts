@@ -21,7 +21,8 @@ export type AiDiagnostic =
   | "empty_response"
   | "invalid_json"
   | "validation_failed"
-  | "unsafe_output";
+  | "unsafe_output"
+  | "provider_timeout";
 
 const isValidUsage = (usage: ProviderTokenUsage) =>
   [usage.promptTokenCount, usage.candidatesTokenCount, usage.totalTokenCount]
