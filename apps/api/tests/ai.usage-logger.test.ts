@@ -17,7 +17,7 @@ describe("AI usage logging", () => {
     logAiUsage({
       feature: "categorise_ticket",
       model: "test-model",
-      promptVersion: "auto-categorise-v1",
+      promptVersion: "auto-categorise-v2",
       usage
     }, { inputCostPer1M: 10, outputCostPer1M: 20 });
     expect(log).toHaveBeenCalledWith("AI usage", expect.objectContaining({
@@ -34,7 +34,7 @@ describe("AI usage logging", () => {
     logAiUsage({
       feature: "suggest_reply",
       model: "test-model",
-      promptVersion: "suggest-reply-v1",
+      promptVersion: "suggest-reply-v2",
       usage: { promptTokenCount: 1, candidatesTokenCount: 1, totalTokenCount: 2 }
     }, {});
     expect(log.mock.calls[0][1]).not.toHaveProperty("estimatedCostUsd");

@@ -28,7 +28,7 @@ beforeEach(() => {
   mocks.suggestCategoryAndPriorityForTicket.mockResolvedValue({
     category: "Account",
     priority: "P1",
-    promptVersion: "auto-categorise-v1"
+    promptVersion: "auto-categorise-v2"
   });
   mocks.prepareSuggestReplyForTicket.mockResolvedValue(draftStream(["Please ", "try again."]));
 });
@@ -61,7 +61,7 @@ describe("ticket AI routes", () => {
       data: {
         category: "Account",
         priority: "P1",
-        promptVersion: "auto-categorise-v1"
+        promptVersion: "auto-categorise-v2"
       },
       error: null,
       meta: null

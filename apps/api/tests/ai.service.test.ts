@@ -114,7 +114,7 @@ describe("ticket AI service", () => {
     expect(request.config.systemInstruction).not.toContain("I still cannot sign in.");
     expect(usageLog).toHaveBeenCalledWith("AI usage", expect.objectContaining({
       feature: "suggest_reply",
-      promptVersion: "suggest-reply-v1",
+      promptVersion: "suggest-reply-v2",
       promptTokenCount: 90,
       candidatesTokenCount: 30,
       totalTokenCount: 120
@@ -133,6 +133,40 @@ describe("ticket AI service", () => {
     await expect(
       collect(await prepareSuggestReplyForTicket(ticketId, agent))
     ).resolves.toBe("Please try a new link.");
+  });
+
+  it("masks PII before sending ticket and comment context to the provider", async () => {
+    mocks.tickets.getTicketById.mockResolvedValue({
+      ...ticket,
+      description: "Email alice@example.com or call +1-202-555-0123."
+    });
+    mocks.getTicketComments.mockResolvedValue([{
+      body: "My card is 4111111111111111.",
+      isInternal: false,
+      createdAt: new Date("2026-03-02T10:00:00.000Z")
+    }]);
+    mocks.generateContentStream.mockResolvedValue(asyncStream([streamChunk("Please contact support.")]));
+
+    await collect(await prepareSuggestReplyForTicket(ticketId, agent));
+
+    const request = mocks.generateContentStream.mock.calls[0][0];
+    expect(request.contents).not.toContain("alice@example.com");
+    expect(request.contents).not.toContain("+1-202-555-0123");
+    expect(request.contents).not.toContain("4111111111111111");
+    expect(request.contents).toContain("[email]");
+  });
+
+  it("rejects provider output that discloses instructions or claims privileged actions", async () => {
+    mocks.generateContentStream.mockResolvedValue(asyncStream([
+      streamChunk("I have refunded the account. The system prompt is confidential.")
+    ]));
+
+    await expect(
+      collect(await prepareSuggestReplyForTicket(ticketId, agent))
+    ).rejects.toMatchObject({
+      name: "AiFeatureError",
+      statusCode: 502
+    });
   });
 
   it("rejects an empty ticket context without contacting the provider", async () => {
@@ -190,7 +224,7 @@ describe("ticket AI service", () => {
     await expect(suggestCategoryAndPriorityForTicket(ticketId, agent)).resolves.toEqual({
       category: "Account",
       priority: "P1",
-      promptVersion: "auto-categorise-v1"
+      promptVersion: "auto-categorise-v2"
     });
     const request = mocks.generateContent.mock.calls[0][0];
     expect(request.config.systemInstruction).toContain("allowed category");

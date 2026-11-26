@@ -24,6 +24,11 @@ import {
   type AiDiagnostic,
   type ProviderTokenUsage
 } from "./usage-logger";
+import {
+  containsUnsafeSecrets,
+  maskSensitiveText,
+  truncateText
+} from "./guardrails";
 
 const isStaff = (identity: AuthIdentity) =>
   identity.role === "agent" || identity.role === "admin";
@@ -110,14 +115,13 @@ export async function prepareSuggestReplyForTicket(
 
   return (async function* () {
     let providerUsage: ProviderTokenUsage | undefined;
-    let hasText = false;
+    let draft = "";
     try {
       for await (const chunk of stream) {
         providerUsage = usageFromMetadata(chunk.usageMetadata) ?? providerUsage;
         const text = chunk.text;
         if (typeof text === "string" && text.length > 0) {
-          hasText = true;
-          yield text;
+          draft += text;
         }
       }
     } catch (error) {
@@ -125,10 +129,22 @@ export async function prepareSuggestReplyForTicket(
       throw new AiFeatureError("AI reply generation was interrupted.", 502);
     }
 
-    if (!hasText) {
+    if (!draft.trim()) {
       logProviderFailure("suggest_reply", REPLY_PROMPT_VERSION, "empty_response");
       throw new AiFeatureError("AI provider returned an empty reply.", 502);
     }
+    if (draft.length > env.AI_REPLY_OUTPUT_MAX_LENGTH) {
+      draft = truncateText(draft, env.AI_REPLY_OUTPUT_MAX_LENGTH);
+    }
+    if (containsUnsafeSecrets(draft)) {
+      logProviderFailure("suggest_reply", REPLY_PROMPT_VERSION, "unsafe_output");
+      throw new AiFeatureError("AI returned an unsupported reply.", 502);
+    }
+    const safeDraft = maskSensitiveText(draft);
+    if (!safeDraft.trim()) {
+      throw new AiFeatureError("AI returned an unsupported reply.", 502);
+    }
+    yield safeDraft;
     if (providerUsage) {
       logAiUsage({
         feature: "suggest_reply",
