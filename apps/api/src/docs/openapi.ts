@@ -116,7 +116,23 @@ export const openApiDocument = {
         parameters: [
           { name: "page", in: "query", schema: { type: "integer", minimum: 1, default: 1 } },
           { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 20 } },
-          { name: "status", in: "query", schema: { type: "string", enum: ["open", "in_progress", "waiting_on_customer", "resolved", "closed"] } },
+          {
+            name: "status",
+            in: "query",
+            style: "form",
+            explode: true,
+            schema: {
+              oneOf: [
+                { type: "string", enum: ["open", "in_progress", "waiting_on_customer", "resolved", "closed"] },
+                {
+                  type: "array",
+                  minItems: 1,
+                  maxItems: 5,
+                  items: { type: "string", enum: ["open", "in_progress", "waiting_on_customer", "resolved", "closed"] }
+                }
+              ]
+            }
+          },
           { name: "priority", in: "query", schema: { type: "string", enum: ["P1", "P2", "P3", "P4"] } },
           { name: "assigneeId", in: "query", schema: { type: "string", format: "uuid" } },
           { name: "search", in: "query", schema: { type: "string", maxLength: 200 } },
@@ -185,7 +201,7 @@ export const openApiDocument = {
               schema: {
                 type: "object",
                 required: ["body"],
-                properties: { body: { type: "string", minLength: 1, maxLength: 5000 }, isInternal: { type: "boolean" } }
+                properties: { body: { type: "string", minLength: 1, maxLength: 1000 }, isInternal: { type: "boolean" } }
               }
             }
           }

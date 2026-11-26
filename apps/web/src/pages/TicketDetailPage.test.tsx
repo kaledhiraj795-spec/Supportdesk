@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { TicketList } from "../features/tickets/components/TicketList";
 import { TicketDetailPage } from "./TicketDetailPage";
 import { saveSession, type AuthSession, type UserRole } from "../lib/auth";
@@ -87,16 +87,30 @@ const sseResponse = (events: string[]) =>
     headers: { "Content-Type": "text/event-stream; charset=utf-8" }
   });
 
+const OpenSecondTicket = () => {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate("/tickets/ticket-43")}>
+      Open second ticket
+    </button>
+  );
+};
+
 const renderDetail = (role: UserRole = "agent", queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } }
-})) => {
+}), showTicketSwitch = false) => {
   saveSession(sessionFor(role));
   render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={["/tickets/ticket-42"]}>
         <Routes>
           <Route path="/tickets" element={<TicketList params={{ page: 1, limit: 20 }} onPageChange={() => undefined} />} />
-          <Route path="/tickets/:id" element={<TicketDetailPage />} />
+          <Route path="/tickets/:id" element={(
+            <>
+              <TicketDetailPage />
+              {showTicketSwitch && <OpenSecondTicket />}
+            </>
+          )} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
@@ -166,6 +180,12 @@ beforeEach(() => {
         category: currentCategory,
         priority: currentPriority
       });
+    }
+    if (url.pathname === "/tickets/ticket-43/comments") {
+      return jsonResponse([]);
+    }
+    if (url.pathname === "/tickets/ticket-43") {
+      return jsonResponse({ ...ticket, id: "ticket-43", title: "Second ticket context" });
     }
     if (url.pathname === "/tickets") {
       return jsonResponse({
@@ -340,8 +360,102 @@ describe("TicketDetailPage", () => {
       "AI draft added to the message box. Review it before posting."
     );
     expect(fetchMock.mock.calls.some(([input, init]) =>
+      new URL(String(input)).pathname === `/tickets/${ticket.id}/ai/suggest-reply` &&
+      init?.method === "POST"
+    )).toBe(true);
+    expect(fetchMock.mock.calls.some(([input, init]) =>
       new URL(String(input)).pathname.endsWith("/comments") && init?.method === "POST"
     )).toBe(false);
+  });
+
+  it("preserves manual composer edits made while an AI reply is streaming", async () => {
+    const user = userEvent.setup();
+    const fetch = fetchMock.getMockImplementation();
+    if (!fetch) throw new Error("Missing test fetch implementation.");
+    let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
+    fetchMock.mockImplementation(async (input, init) => {
+      if (new URL(String(input)).pathname.endsWith("/ai/suggest-reply")) {
+        return new Response(new ReadableStream<Uint8Array>({
+          start(controller) {
+            streamController = controller;
+          }
+        }), {
+          headers: { "Content-Type": "text/event-stream; charset=utf-8" }
+        });
+      }
+      return fetch(input, init);
+    });
+    const enqueueEvent = (event: string) => {
+      if (!streamController) throw new Error("The AI reply stream has not started.");
+      streamController.enqueue(new TextEncoder().encode(event));
+    };
+    renderDetail("agent");
+    await screen.findByRole("heading", { name: ticket.title });
+    const composer = screen.getByRole("textbox", { name: "Message" });
+
+    await user.click(screen.getByRole("button", { name: "Suggest Reply" }));
+    await waitFor(() => expect(streamController).toBeDefined());
+    act(() => {
+      enqueueEvent('event: delta\ndata: {"text":"Initial AI text"}\n\n');
+    });
+    await waitFor(() => expect(composer).toHaveValue("Initial AI text"));
+
+    await user.clear(composer);
+    await user.type(composer, "Agent-edited reply.");
+    act(() => {
+      enqueueEvent('event: delta\ndata: {"text":" later AI text"}\n\n');
+      enqueueEvent("event: done\ndata: {}\n\n");
+      if (!streamController) throw new Error("The AI reply stream has not started.");
+      streamController.close();
+    });
+
+    expect(await screen.findByText(
+      "AI draft added to the message box. Review it before posting."
+    )).toBeInTheDocument();
+    expect(composer).toHaveValue("Agent-edited reply.");
+  });
+
+  it("replaces the prior AI draft when regenerating and preserves manual text", async () => {
+    const user = userEvent.setup();
+    const fetch = fetchMock.getMockImplementation();
+    if (!fetch) throw new Error("Missing test fetch implementation.");
+    let responseNumber = 0;
+    fetchMock.mockImplementation(async (input, init) => {
+      if (new URL(String(input)).pathname.endsWith("/ai/suggest-reply")) {
+        responseNumber += 1;
+        return sseResponse([
+          `event: delta\ndata: ${JSON.stringify({ text: `Draft ${responseNumber}.` })}\n\n`,
+          'event: done\ndata: {}\n\n'
+        ]);
+      }
+      return fetch(input, init);
+    });
+    renderDetail("agent");
+    await screen.findByRole("heading", { name: ticket.title });
+    const composer = screen.getByRole("textbox", { name: "Message" });
+    await user.type(composer, "Manual opening.");
+
+    await user.click(screen.getByRole("button", { name: "Suggest Reply" }));
+    await waitFor(() => expect(composer).toHaveValue("Manual opening.\n\nDraft 1."));
+
+    await user.click(screen.getByRole("button", { name: "Suggest Reply" }));
+    await waitFor(() => expect(composer).toHaveValue("Manual opening.\n\nDraft 2."));
+  });
+
+  it("clears the previous ticket's draft when the route changes", async () => {
+    const user = userEvent.setup();
+    renderDetail("agent", undefined, true);
+    await screen.findByRole("heading", { name: ticket.title });
+
+    await user.click(screen.getByRole("button", { name: "Suggest Reply" }));
+    const composer = screen.getByRole("textbox", { name: "Message" });
+    await waitFor(() => expect(composer).toHaveValue("Thanks for reaching out."));
+
+    await user.click(screen.getByRole("button", { name: "Open second ticket" }));
+
+    expect(await screen.findByRole("heading", { name: "Second ticket context" })).toBeInTheDocument();
+    const newTicketComposer = screen.getByRole("textbox", { name: "Message" });
+    await waitFor(() => expect(newTicketComposer).toHaveValue(""));
   });
 
   it("shows an AI suggestion for review and applies it only when requested", async () => {
@@ -387,5 +501,38 @@ describe("TicketDetailPage", () => {
     await user.click(screen.getByRole("button", { name: "Suggest Reply" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("AI provider request failed.");
+  });
+
+  it("allows a manual reply after AI fails and shows the exact fallback", async () => {
+    const user = userEvent.setup();
+    const fetch = fetchMock.getMockImplementation();
+    if (!fetch) throw new Error("Missing test fetch implementation.");
+    fetchMock.mockImplementation(async (input, init) => {
+      if (new URL(String(input)).pathname.endsWith("/ai/suggest-reply")) {
+        return sseResponse([
+          'event: error\ndata: {"message":"AI provider request failed."}\n\n'
+        ]);
+      }
+      return fetch(input, init);
+    });
+    renderDetail("agent");
+    await screen.findByRole("heading", { name: ticket.title });
+
+    await user.click(screen.getByRole("button", { name: "Suggest Reply" }));
+    expect(await screen.findByText("AI unavailable — reply manually.")).toBeInTheDocument();
+
+    const composer = screen.getByRole("textbox", { name: "Message" });
+    await user.clear(composer);
+    await user.type(composer, "I can help you reset your password.");
+    await user.click(screen.getByRole("button", { name: "Post comment" }));
+
+    expect(await screen.findByText("Comment added.")).toBeInTheDocument();
+    const manualPost = fetchMock.mock.calls.find(([input, init]) =>
+      new URL(String(input)).pathname.endsWith("/comments") && init?.method === "POST"
+    );
+    expect(JSON.parse(String(manualPost?.[1]?.body))).toEqual({
+      body: "I can help you reset your password.",
+      isInternal: false
+    });
   });
 });

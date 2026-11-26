@@ -54,8 +54,33 @@ export function TicketDetailPage() {
     priority: "P1" | "P2" | "P3" | "P4";
   } | null>(null);
   const replyAbortController = useRef<AbortController | null>(null);
+  const replyGeneration = useRef(0);
+  const previousAiDraft = useRef("");
+  const activeAiDraft = useRef("");
+  const replyEditedDuringGeneration = useRef(false);
 
-  useEffect(() => () => replyAbortController.current?.abort(), []);
+  useEffect(() => {
+    return () => {
+      replyGeneration.current += 1;
+      replyAbortController.current?.abort();
+      replyAbortController.current = null;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    setCommentBody("");
+    setCommentAttempted(false);
+    setIsInternal(false);
+    setSelectedStatus(null);
+    setAiSuggestion(null);
+    commentMutation.reset();
+    statusMutation.reset();
+    previousAiDraft.current = "";
+    activeAiDraft.current = "";
+    suggestReplyMutation.reset();
+    categoriseMutation.reset();
+    applySuggestionMutation.reset();
+  }, [id]);
 
   if (ticketQuery.isPending) {
     return <LoadingState label="Loading ticket…" />;
@@ -90,7 +115,13 @@ export function TicketDetailPage() {
     if (!body || commentMutation.isPending) return;
     commentMutation.mutate(
       { body, ...(isStaff ? { isInternal } : {}) },
-      { onSuccess: () => setCommentBody("") }
+      {
+        onSuccess: () => {
+          setCommentBody("");
+          previousAiDraft.current = "";
+          activeAiDraft.current = "";
+        }
+      }
     );
   };
 
@@ -102,18 +133,37 @@ export function TicketDetailPage() {
 
   const suggestReply = () => {
     if (!isStaff || suggestReplyMutation.isPending || commentMutation.isPending) return;
+    const previousDraft = previousAiDraft.current;
+    const manualPrefix = previousDraft && commentBody.endsWith(previousDraft)
+      ? commentBody.slice(0, -previousDraft.length).trimEnd()
+      : commentBody.trimEnd();
+    const prefixWithSeparator = manualPrefix ? `${manualPrefix}\n\n` : "";
+    const generation = ++replyGeneration.current;
+    activeAiDraft.current = "";
+    previousAiDraft.current = "";
+    replyEditedDuringGeneration.current = false;
     const controller = new AbortController();
     replyAbortController.current = controller;
     setCommentAttempted(false);
-    setCommentBody((current) => current.trim() ? `${current}\n\n` : "");
+    setCommentBody(prefixWithSeparator);
     suggestReplyMutation.mutate(
       {
         ticketId: id,
         signal: controller.signal,
-        onChunk: (text) => setCommentBody((current) => current + text)
+        onChunk: (text) => {
+          if (generation !== replyGeneration.current || replyEditedDuringGeneration.current) return;
+          activeAiDraft.current += text;
+          setCommentBody(`${prefixWithSeparator}${activeAiDraft.current}`);
+        }
       },
       {
         onSettled: () => {
+          if (
+            generation === replyGeneration.current &&
+            !replyEditedDuringGeneration.current
+          ) {
+            previousAiDraft.current = activeAiDraft.current;
+          }
           if (replyAbortController.current === controller) {
             replyAbortController.current = null;
           }
@@ -257,17 +307,24 @@ export function TicketDetailPage() {
                   <textarea
                     id="comment-body"
                     required
-                    maxLength={5000}
+                    maxLength={1000}
                     rows={4}
                     value={commentBody}
                     aria-invalid={commentAttempted && !commentBody.trim()}
                     aria-describedby={commentAttempted && !commentBody.trim()
                       ? "comment-body-help comment-body-error"
                       : "comment-body-help"}
-                    onChange={(event) => setCommentBody(event.target.value)}
+                    onChange={(event) => {
+                      previousAiDraft.current = "";
+                      if (replyAbortController.current) {
+                        replyEditedDuringGeneration.current = true;
+                        activeAiDraft.current = "";
+                      }
+                      setCommentBody(event.target.value);
+                    }}
                     className="block w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700"
                   />
-                  <p id="comment-body-help" className="text-xs text-slate-500">Keep your message under 5,000 characters.</p>
+                  <p id="comment-body-help" className="text-xs text-slate-500">Keep your message under 1,000 characters.</p>
                   {commentAttempted && !commentBody.trim() && (
                     <p id="comment-body-error" role="alert" className="text-sm text-red-700">Enter a message before submitting.</p>
                   )}
@@ -303,6 +360,7 @@ export function TicketDetailPage() {
                 )}
                 {isStaff && suggestReplyMutation.isError && (
                   <p role="alert" aria-live="assertive" className="text-sm text-red-700">
+                    <span>AI unavailable — reply manually.</span>{" "}
                     {suggestReplyMutation.error instanceof Error
                       ? suggestReplyMutation.error.message
                       : "AI reply could not be generated."}

@@ -6,6 +6,7 @@ vi.mock("@google/genai", () => ({ GoogleGenAI: mockGoogleGenAI }));
 
 const originalApiKey = process.env.GEMINI_API_KEY;
 const originalApiMode = process.env.GEMINI_API_MODE;
+const originalRequestTimeout = process.env.GEMINI_REQUEST_TIMEOUT_MS;
 
 afterEach(() => {
   if (originalApiKey === undefined) {
@@ -17,6 +18,11 @@ afterEach(() => {
     delete process.env.GEMINI_API_MODE;
   } else {
     process.env.GEMINI_API_MODE = originalApiMode;
+  }
+  if (originalRequestTimeout === undefined) {
+    delete process.env.GEMINI_REQUEST_TIMEOUT_MS;
+  } else {
+    process.env.GEMINI_REQUEST_TIMEOUT_MS = originalRequestTimeout;
   }
   mockGoogleGenAI.mockReset();
   vi.resetModules();
@@ -37,6 +43,7 @@ describe("lazy Gemini client", () => {
     async (apiKey) => {
       process.env.GEMINI_API_KEY = apiKey;
       process.env.GEMINI_API_MODE = "";
+      process.env.GEMINI_REQUEST_TIMEOUT_MS = "12345";
       vi.resetModules();
       const { getGeminiClient } = await import("../src/ai/client.js");
 
@@ -45,13 +52,17 @@ describe("lazy Gemini client", () => {
 
       expect(first).toBe(second);
       expect(mockGoogleGenAI).toHaveBeenCalledTimes(1);
-      expect(mockGoogleGenAI).toHaveBeenCalledWith({ apiKey });
+      expect(mockGoogleGenAI).toHaveBeenCalledWith({
+        apiKey,
+        httpOptions: { timeout: 12345 }
+      });
     }
   );
 
   it("uses Vertex Express mode only when explicitly configured", async () => {
     process.env.GEMINI_API_KEY = "AQAB8vertex-test-key";
     process.env.GEMINI_API_MODE = "vertex";
+    process.env.GEMINI_REQUEST_TIMEOUT_MS = "12345";
     vi.resetModules();
     const { getGeminiClient } = await import("../src/ai/client.js");
 
@@ -59,7 +70,8 @@ describe("lazy Gemini client", () => {
 
     expect(mockGoogleGenAI).toHaveBeenCalledWith({
       vertexai: true,
-      apiKey: "AQAB8vertex-test-key"
+      apiKey: "AQAB8vertex-test-key",
+      httpOptions: { timeout: 12345 }
     });
   });
 });

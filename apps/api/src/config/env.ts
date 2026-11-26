@@ -20,6 +20,12 @@ const envGeminiApiMode = z.preprocess(
   z.enum(["developer", "vertex"]).default("developer")
 );
 
+const envPositiveIntWithDefault = (defaultValue: number) =>
+  z.preprocess(
+    emptyEnvTextAsUndefined,
+    z.coerce.number().int().positive().default(defaultValue)
+  );
+
 const optionalEnvRate = z.preprocess(
   (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
   z.coerce.number().finite().min(0).optional()
@@ -39,6 +45,13 @@ const envSchema = z.object({
   GEMINI_API_KEY: optionalEnvText,
   GEMINI_API_MODE: envGeminiApiMode,
   GEMINI_MODEL: envTextWithDefault("gemini-3.8-flash"),
+  GEMINI_REQUEST_TIMEOUT_MS: envPositiveIntWithDefault(30_000),
+  AI_TICKET_DESCRIPTION_MAX_LENGTH: envPositiveIntWithDefault(4000),
+  AI_RECENT_COMMENT_MAX_LENGTH: envPositiveIntWithDefault(1000),
+  AI_RECENT_COMMENTS_MAX_COUNT: envPositiveIntWithDefault(10),
+  AI_REPLY_OUTPUT_MAX_LENGTH: envPositiveIntWithDefault(4000),
+  AI_RATE_LIMIT_WINDOW_MS: envPositiveIntWithDefault(15 * 60 * 1000),
+  AI_RATE_LIMIT_MAX: envPositiveIntWithDefault(20),
   GEMINI_INPUT_COST_PER_1M: optionalEnvRate,
   GEMINI_OUTPUT_COST_PER_1M: optionalEnvRate,
   CORS_ORIGINS: z.string().transform((value) =>
